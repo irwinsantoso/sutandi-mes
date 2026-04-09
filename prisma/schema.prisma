@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// AUTHENTICATION
+// ============================================================
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(OPERATOR)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  inboundTransactions  InboundTransaction[]
+  outboundTransactions OutboundTransaction[]
+  productionOrders     ProductionOrder[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  OPERATOR
+}
+
+// ============================================================
+// MASTER DATA
+// ============================================================
+
+model Item {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  description String?
+  category    ItemCategory
+  baseUomId   String       @map("base_uom_id")
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  baseUom Uom @relation(fields: [baseUomId], references: [id])
+
+  uomConversions               UomConversion[]
+  inboundTransactionItems      InboundTransactionItem[]
+  outboundTransactionItems     OutboundTransactionItem[]
+  productionOrderMaterials     ProductionOrderMaterial[]
+  productionOrderOutputs       ProductionOrderOutput[]
+  inventoryRecords             Inventory[]
+  stockMovements               StockMovement[]
+
+  @@map("items")
+}
+
+enum ItemCategory {
+  RAW_MATERIAL
+  WIP
+  FINISHED_GOOD
+  PACKAGING
+  CONSUMABLE
+}
+
+model Uom {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items Item[]
+
+  fromConversions UomConversion[] @relation("FromUom")
+  toConversions   UomConversion[] @relation("ToUom")
+
+  inboundTransactionItems  InboundTransactionItem[]
+  outboundTransactionItems OutboundTransactionItem[]
+  productionOrderMaterials ProductionOrderMaterial[]
+  productionOrderOutputs   ProductionOrderOutput[]
+  inventoryRecords         Inventory[]
+  stockMovements           StockMovement[]
+
+  @@map("uom")
+}
+
+model UomConversion {
+  id               String  @id @default(cuid())
+  itemId           String  @map("item_id")
+  fromUomId        String  @map("from_uom_id")
+  toUomId          String  @map("to_uom_id")
+  conversionFactor Decimal @map("conversion_factor") @db.Decimal(18, 6)
+
+  item    Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  fromUom Uom  @relation("FromUom", fields: [fromUomId], references: [id])
+  toUom   Uom  @relation("ToUom", fields: [toUomId], references: [id])
+
+  @@unique([itemId, fromUomId, toUomId])
+  @@map("uom_conversions")
+}
+
+// ============================================================
+// WAREHOUSE & LOCATIONS
+// ============================================================
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  locations Location[]
+
+  @@map("warehouses")
+}
+
+model Location {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  warehouseId String   @map("warehouse_id")
+  zone        String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  inboundTransactionItems  InboundTransactionItem[]
+  outboundTransactionItems OutboundTransactionItem[]
+  inventoryRecords         Inventory[]
+  stockMovements           StockMovement[]
+
+  @@map("locations")
+}
+
+// ============================================================
+// INBOUND TRANSACTIONS
+// ============================================================
+
+model InboundTransaction {
+  id                String            @id @default(cuid())
+  transactionNumber String            @unique @map("transaction_number")
+  referenceNumber   String?           @map("reference_number")
+  supplier          String?
+  receivingDate     DateTime          @map("receiving_date")
+  notes             String?
+  status            TransactionStatus @default(DRAFT)
+  createdById       String            @map("created_by_id")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  createdBy User                     @relation(fields: [createdById], references: [id])
+  items     InboundTransactionItem[]
+
+  @@map("inbound_transactions")
+}
+
+model InboundTransactionItem {
+  id                   String    @id @default(cuid())
+  inboundTransactionId String    @map("inbound_transaction_id")
+  itemId               String    @map("item_id")
+  quantity             Decimal   @db.Decimal(18, 4)
+  uomId                String    @map("uom_id")
+  quantityInBaseUom    Decimal   @map("quantity_in_base_uom") @db.Decimal(18, 4)
+  batchLot             String?   @map("batch_lot")
+  locationId           String    @map("location_id")
+  qrCodeData           String?   @map("qr_code_data")
+  expiryDate           DateTime? @map("expiry_date")
+  notes                String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  inboundTransaction InboundTransaction @relation(fields: [inboundTransactionId], references: [id], onDelete: Cascade)
+  item               Item               @relation(fields: [itemId], references: [id])
+  uom                Uom                @relation(fields: [uomId], references: [id])
+  location           Location           @relation(fields: [locationId], references: [id])
+
+  stockMovements StockMovement[]
+
+  @@map("inbound_transaction_items")
+}
+
+// ============================================================
+// OUTBOUND TRANSACTIONS
+// ============================================================
+
+model OutboundTransaction {
+  id                String            @id @default(cuid())
+  transactionNumber String            @unique @map("transaction_number")
+  productionOrderId String?           @map("production_order_id")
+  purpose           String?
+  issueDate         DateTime          @map("issue_date")
+  notes             String?
+  status            TransactionStatus @default(DRAFT)
+  createdById       String            @map("created_by_id")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  createdBy       User                      @relation(fields: [createdById], references: [id])
+  productionOrder ProductionOrder?           @relation(fields: [productionOrderId], references: [id])
+  items           OutboundTransactionItem[]
+
+  @@map("outbound_transactions")
+}
+
+model OutboundTransactionItem {
+  id                    String   @id @default(cuid())
+  outboundTransactionId String   @map("outbound_transaction_id")
+  itemId                String   @map("item_id")
+  quantity              Decimal  @db.Decimal(18, 4)
+  uomId                 String   @map("uom_id")
+  quantityInBaseUom     Decimal  @map("quantity_in_base_uom") @db.Decimal(18, 4)
+  batchLot              String?  @map("batch_lot")
+  locationId            String   @map("location_id")
+  scannedQrData         String?  @map("scanned_qr_data")
+  notes                 String?
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  outboundTransaction OutboundTransaction @relation(fields: [outboundTransactionId], references: [id], onDelete: Cascade)
+  item                Item                @relation(fields: [itemId], references: [id])
+  uom                 Uom                 @relation(fields: [uomId], references: [id])
+  location            Location            @relation(fields: [locationId], references: [id])
+
+  stockMovements StockMovement[]
+
+  @@map("outbound_transaction_items")
+}
+
+enum TransactionStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
+// ============================================================
+// PRODUCTION ORDERS
+// ============================================================
+
+model ProductionOrder {
+  id               String                @id @default(cuid())
+  orderNumber      String                @unique @map("order_number")
+  type             ProductionOrderType
+  description      String?
+  status           ProductionOrderStatus @default(DRAFT)
+  plannedStartDate DateTime?             @map("planned_start_date")
+  plannedEndDate   DateTime?             @map("planned_end_date")
+  actualStartDate  DateTime?             @map("actual_start_date")
+  actualEndDate    DateTime?             @map("actual_end_date")
+  notes            String?
+  createdById      String                @map("created_by_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  createdBy            User                      @relation(fields: [createdById], references: [id])
+  materials            ProductionOrderMaterial[]
+  outputs              ProductionOrderOutput[]
+  outboundTransactions OutboundTransaction[]
+
+  @@map("production_orders")
+}
+
+enum ProductionOrderType {
+  WIP
+  FINISHED_GOOD
+}
+
+enum ProductionOrderStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model ProductionOrderMaterial {
+  id                String   @id @default(cuid())
+  productionOrderId String   @map("production_order_id")
+  itemId            String   @map("item_id")
+  requiredQuantity  Decimal  @map("required_quantity") @db.Decimal(18, 4)
+  uomId             String   @map("uom_id")
+  consumedQuantity  Decimal  @default(0) @map("consumed_quantity") @db.Decimal(18, 4)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  item            Item            @relation(fields: [itemId], references: [id])
+  uom             Uom             @relation(fields: [uomId], references: [id])
+
+  @@map("production_order_materials")
+}
+
+model ProductionOrderOutput {
+  id                String   @id @default(cuid())
+  productionOrderId String   @map("production_order_id")
+  itemId            String   @map("item_id")
+  targetQuantity    Decimal  @map("target_quantity") @db.Decimal(18, 4)
+  uomId             String   @map("uom_id")
+  producedQuantity  Decimal  @default(0) @map("produced_quantity") @db.Decimal(18, 4)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  item            Item            @relation(fields: [itemId], references: [id])
+  uom             Uom             @relation(fields: [uomId], references: [id])
+
+  @@map("production_order_outputs")
+}
+
+// ============================================================
+// INVENTORY & STOCK MOVEMENTS
+// ============================================================
+
+model Inventory {
+  id               String  @id @default(cuid())
+  itemId           String  @map("item_id")
+  locationId       String  @map("location_id")
+  batchLot         String  @default("") @map("batch_lot")
+  uomId            String  @map("uom_id")
+  quantity         Decimal @db.Decimal(18, 4)
+  reservedQuantity Decimal @default(0) @map("reserved_quantity") @db.Decimal(18, 4)
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  item     Item     @relation(fields: [itemId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+  uom      Uom      @relation(fields: [uomId], references: [id])
+
+  @@unique([itemId, locationId, batchLot, uomId])
+  @@map("inventory")
+}
+
+model StockMovement {
+  id                        String       @id @default(cuid())
+  movementType              MovementType @map("movement_type")
+  itemId                    String       @map("item_id")
+  locationId                String       @map("location_id")
+  batchLot                  String?      @map("batch_lot")
+  quantity                  Decimal      @db.Decimal(18, 4)
+  uomId                     String       @map("uom_id")
+  quantityInBaseUom         Decimal      @map("quantity_in_base_uom") @db.Decimal(18, 4)
+  inboundTransactionItemId  String?      @map("inbound_transaction_item_id")
+  outboundTransactionItemId String?      @map("outbound_transaction_item_id")
+  referenceNumber           String?      @map("reference_number")
+  notes                     String?
+  createdAt                 DateTime     @default(now()) @map("created_at")
+
+  item                    Item                     @relation(fields: [itemId], references: [id])
+  location                Location                 @relation(fields: [locationId], references: [id])
+  uom                     Uom                      @relation(fields: [uomId], references: [id])
+  inboundTransactionItem  InboundTransactionItem?  @relation(fields: [inboundTransactionItemId], references: [id])
+  outboundTransactionItem OutboundTransactionItem? @relation(fields: [outboundTransactionItemId], references: [id])
+
+  @@index([itemId, locationId])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+enum MovementType {
+  INBOUND
+  OUTBOUND
+  ADJUSTMENT
+  TRANSFER
+  PRODUCTION
+}
