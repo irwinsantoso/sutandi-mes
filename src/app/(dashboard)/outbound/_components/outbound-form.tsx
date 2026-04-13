@@ -78,6 +78,7 @@ interface LineItem {
   notes: string
   showQrInput: boolean
   qrText: string
+  qrOriginalQty: number | null
 }
 
 function createEmptyLineItem(): LineItem {
@@ -92,6 +93,7 @@ function createEmptyLineItem(): LineItem {
     notes: "",
     showQrInput: false,
     qrText: "",
+    qrOriginalQty: null,
   }
 }
 
@@ -178,6 +180,7 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
       scannedQrData: line.qrText,
       showQrInput: false,
       qrText: "",
+      qrOriginalQty: payload.qty || null,
     }
 
     if (matchedItem) {
@@ -397,7 +400,7 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
                 {/* QR Input area */}
                 {line.showQrInput && (
                   <div className="rounded-md border border-dashed p-4 space-y-3">
-                    <Label>Paste or type QR data</Label>
+                    <Label>Scan or paste QR data (scanner auto-submits on Enter)</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         placeholder='{"id":"...","txn":"...","item":"..."}'
@@ -405,6 +408,15 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
                         onChange={(e) =>
                           updateLineItem(index, { qrText: e.target.value })
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            if (line.qrText) {
+                              handleParseQr(index)
+                            }
+                          }
+                        }}
+                        autoFocus
                         className="flex-1"
                       />
                       <Button
@@ -468,6 +480,24 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
                         updateLineItem(index, { quantity: e.target.value })
                       }
                     />
+                    {line.qrOriginalQty !== null && (
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">
+                          QR label qty: {line.qrOriginalQty}
+                          {line.quantity && parseFloat(line.quantity) < line.qrOriginalQty && (
+                            <span className="ml-1 text-blue-600">
+                              (partial: {line.qrOriginalQty - parseFloat(line.quantity)} remaining)
+                            </span>
+                          )}
+                        </p>
+                        {line.quantity && parseFloat(line.quantity) > line.qrOriginalQty && (
+                          <p className="text-xs text-destructive font-medium">
+                            Warning: outbound qty exceeds QR label qty by{" "}
+                            {parseFloat(line.quantity) - line.qrOriginalQty}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">

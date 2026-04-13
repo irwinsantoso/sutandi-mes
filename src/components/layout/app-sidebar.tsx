@@ -10,6 +10,7 @@ import {
   Factory,
   Package,
   ArrowLeftRight,
+  ClipboardList,
   Boxes,
   Ruler,
   Warehouse,
@@ -51,6 +52,7 @@ const navGroups = [
   {
     label: "Inventory",
     items: [
+      { title: "Stock Summary", href: "/inventory/summary", icon: ClipboardList },
       { title: "Stock Levels", href: "/inventory", icon: Package },
       {
         title: "Stock Movements",
