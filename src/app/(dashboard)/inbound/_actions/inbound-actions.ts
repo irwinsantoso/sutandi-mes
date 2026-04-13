@@ -60,10 +60,14 @@ export async function createInboundTransaction(data: {
       items.map(async (item) => {
         const dbItem = await prisma.item.findUniqueOrThrow({
           where: { id: item.itemId },
-          select: { code: true, name: true, baseUomId: true },
+          select: { code: true, name: true, baseUomId: true, baseUom: { select: { code: true } } },
         })
         const uom = await prisma.uom.findUniqueOrThrow({
           where: { id: item.uomId },
+          select: { code: true },
+        })
+        const location = await prisma.location.findUniqueOrThrow({
+          where: { id: item.locationId },
           select: { code: true },
         })
         const quantityInBaseUom = await toBaseUom(
@@ -71,7 +75,7 @@ export async function createInboundTransaction(data: {
           item.uomId,
           new Decimal(item.quantity)
         )
-        return { ...item, dbItem, uom, quantityInBaseUom }
+        return { ...item, dbItem, uom, location, quantityInBaseUom }
       })
     )
 
@@ -87,14 +91,16 @@ export async function createInboundTransaction(data: {
           createdById: session.user.id,
           items: {
             create: itemDetails.map((item) => {
+              // v2 QR: identifies the destination inventory bin, not the
+              // receipt line. Encodes item+location+batch+base UOM so the
+              // same sticker remains valid through partial picks and can
+              // be reprinted from the inventory page.
               const qrPayload = encodeQrPayload({
-                id: "",
-                txn: transactionNumber,
+                v: 2,
                 item: item.dbItem.code,
+                loc: item.location.code,
                 batch: item.batchLot || null,
-                qty: item.quantity,
-                uom: item.uom.code,
-                date: receivingDate,
+                uom: item.dbItem.baseUom.code,
               })
               return {
                 itemId: item.itemId,

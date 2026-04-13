@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
+import { LabelDialog } from "./label-dialog";
 
 export type ReservationInfo = {
   orderId: string;
@@ -25,6 +26,7 @@ export type InventoryRow = {
   itemName: string;
   itemCategory: string;
   locationCode: string;
+  locationCodeRaw: string;
   batchLot: string;
   quantity: number;
   reservedQuantity: number;
@@ -230,5 +232,21 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
         </span>
       );
     },
+  },
+  {
+    id: "label",
+    header: () => <div className="text-center">Label</div>,
+    cell: ({ row }) => (
+      <div className="flex justify-center">
+        <LabelDialog
+          itemCode={row.original.itemCode}
+          itemName={row.original.itemName}
+          locationCode={row.original.locationCodeRaw}
+          locationDisplay={row.original.locationCode}
+          batchLot={row.original.batchLot}
+          uomCode={row.original.uomCode}
+        />
+      </div>
+    ),
   },
 ];

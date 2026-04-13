@@ -24,7 +24,7 @@ import { Plus, Trash2, QrCode } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 import { createOutboundTransaction } from "../_actions/outbound-actions"
-import { parseQrPayload } from "@/lib/qr-code"
+import { parseQrPayload, isV2 } from "@/lib/qr-code"
 import { format } from "date-fns"
 
 interface ProductionOrderOption {
@@ -166,9 +166,7 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
       return
     }
 
-    // Try to find matching item by code
     const matchedItem = items.find((i) => i.code === payload.item)
-    // Try to find matching UOM by code
     let matchedUomId = ""
     if (matchedItem) {
       const availableUoms = getAvailableUoms(matchedItem)
@@ -180,18 +178,27 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
       scannedQrData: line.qrText,
       showQrInput: false,
       qrText: "",
-      qrOriginalQty: payload.qty || null,
+      // v2 QR identifies a bin, not a receipt. Operator enters qty manually.
+      qrOriginalQty: isV2(payload) ? null : payload.qty || null,
     }
 
     if (matchedItem) {
       updates.itemId = matchedItem.id
       updates.uomId = matchedUomId
     }
-    if (payload.qty) {
-      updates.quantity = String(payload.qty)
-    }
     if (payload.batch) {
       updates.batchLot = payload.batch
+    }
+
+    if (isV2(payload)) {
+      // Auto-select the location encoded in the QR.
+      const matchedLoc = locations.find((l) => l.code === payload.loc)
+      if (matchedLoc) {
+        updates.locationId = matchedLoc.id
+      }
+    } else if (payload.qty) {
+      // Legacy v1: QR carried an original qty; preserve previous behavior.
+      updates.quantity = String(payload.qty)
     }
 
     updateLineItem(index, updates)

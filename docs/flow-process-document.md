@@ -55,9 +55,9 @@ Inbound transactions record goods **received** into the warehouse.
 2. Enter supplier information, reference number, and receiving date
 3. Add line items: select item, quantity, UOM, storage location, and batch/lot number
 4. Save as **DRAFT**
-5. Each line item automatically generates a **QR code** for warehouse labeling
-6. Review and click **Confirm** to finalize
-7. On confirmation, stock is **added** to inventory and a stock movement record is created
+5. Review and click **Confirm** to finalize
+6. On confirmation, stock is **added** to inventory and a stock movement record is created
+7. Print **Bin Labels** from the Inventory page for physical goods (one QR per item + location + batch + UOM)
 
 ### Status Flow:
 - **DRAFT** - Transaction created, can be edited
@@ -77,9 +77,10 @@ Outbound transactions record goods **issued** from the warehouse.
 1. Click **"+ New Outbound"** to create a new issue transaction
 2. Optionally link to a **Production Order** (for material consumption)
 3. Enter purpose, issue date, and line items
-4. Select items, quantities, UOM, and source locations
-5. Save as **DRAFT**, then **Confirm** to finalize
-6. On confirmation, stock is **deducted** from inventory and a stock movement record is created
+4. **Scan the bin QR** to auto-fill item, location, batch, and UOM — or select manually
+5. Enter the quantity to take (can be partial; the same label remains valid on the remaining stock)
+6. Save as **DRAFT**, then **Confirm** to finalize
+7. On confirmation, stock is **deducted** from inventory and a stock movement record is created
 
 ### Status Flow:
 - Same as Inbound: **DRAFT** -> **CONFIRMED** or **CANCELLED**
@@ -118,8 +119,9 @@ View real-time stock quantities across all locations. The table shows:
 - **Location** (Warehouse / Zone)
 - **Batch/Lot** number
 - **On Hand** quantity
-- **Reserved** quantity (allocated to production)
+- **Reserved** quantity (allocated to production — click to see which orders hold it)
 - **Available** quantity (On Hand - Reserved)
+- **Label** — print a QR bin label. Encodes item + location + batch + UOM so the same sticker stays valid across partial picks
 
 ![Stock Levels](screenshots/07-inventory.png)
 
@@ -169,11 +171,12 @@ Master Data Setup          Transactions              Inventory
 ==================    ======================    ==================
                       
   Items ──────────>   Inbound (Receiving)  ──>   + Stock Added
-  UOM   ──────────>     ├── QR Code Gen          │
-  Warehouses ─────>     └── Confirm              │
+  UOM   ──────────>     └── Confirm              │
+  Warehouses ─────>                               │
                                                   ├── Stock Levels
                       Outbound (Issuing)   ──>   │  (Real-time)
-                        ├── QR Code Scan         │
+                        ├── Scan Bin QR          │    └── Print Bin Label
+                        ├── (partial ok)         │
                         └── Confirm         ──>  - Stock Deducted
                                                   │
                       Production Orders           ├── Stock Movements

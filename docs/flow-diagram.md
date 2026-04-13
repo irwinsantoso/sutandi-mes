@@ -34,9 +34,7 @@ flowchart TB
                 IN_NEW["/inbound/new<br>Create Receiving"]
                 IN_DRAFT["Status: DRAFT"]
                 IN_CONFIRM["Status: CONFIRMED"]
-                QR_GEN["Generate QR Code<br>per Line Item"]
                 IN_NEW --> IN_DRAFT
-                IN_DRAFT --> QR_GEN
                 IN_DRAFT --> IN_CONFIRM
             end
 
@@ -44,7 +42,7 @@ flowchart TB
                 OUT_NEW["/outbound/new<br>Create Issue"]
                 OUT_DRAFT["Status: DRAFT"]
                 OUT_CONFIRM["Status: CONFIRMED"]
-                QR_SCAN["Scan QR Code<br>(Verification)"]
+                QR_SCAN["Scan Bin QR<br>(auto-fill item/loc/batch)"]
                 OUT_NEW --> OUT_DRAFT
                 OUT_DRAFT --> QR_SCAN
                 OUT_DRAFT --> OUT_CONFIRM
@@ -68,6 +66,8 @@ flowchart TB
         subgraph INVENTORY["Inventory Management"]
             STOCK["/inventory<br>Current Stock Levels"]
             MOVEMENTS["/inventory/movements<br>Stock Movement Audit Trail"]
+            QR_LABEL["Print Bin Label<br>(item + location + batch + UOM)"]
+            STOCK --> QR_LABEL
         end
 
         subgraph IMPORT["Excel Import Utility"]
@@ -157,7 +157,7 @@ flowchart TB
 
     class LOGIN,NEXTAUTH,MIDDLEWARE auth
     class ITEMS,UOM,WAREHOUSES,UOM_CONV master
-    class IN_NEW,OUT_NEW,PO_NEW,QR_GEN,QR_SCAN,BOM_MAT,BOM_OUT transaction
+    class IN_NEW,OUT_NEW,PO_NEW,QR_LABEL,QR_SCAN,BOM_MAT,BOM_OUT transaction
     class IN_DRAFT,OUT_DRAFT,PO_DRAFT,IN_CONFIRM,OUT_CONFIRM,PO_PROGRESS,PO_COMPLETE status
     class STOCK,MOVEMENTS inventory
     class UPLOAD,PARSE,PREVIEW,EXECUTE,RESULT import
@@ -181,14 +181,13 @@ flowchart TB
 ### 3. Inbound (Receiving)
 1. Create inbound transaction with supplier info and line items
 2. Auto-generates transaction number (`IN-YYYYMMDD-###`)
-3. Each line item gets a QR code with encoded payload (item, batch, qty, UOM)
-4. On confirmation: stock is **added** to inventory, stock movements are recorded
+3. On confirmation: stock is **added** to inventory, stock movements are recorded
 
 ### 4. Outbound (Issuing)
 1. Create outbound transaction with purpose and line items
 2. Auto-generates transaction number (`OUT-YYYYMMDD-###`)
 3. Can optionally link to a production order (material consumption)
-4. QR scanning for verification
+4. Scan bin QR to auto-fill item, location, batch, UOM — user enters take quantity (supports partial picks)
 5. On confirmation: stock is **deducted** from inventory, stock movements are recorded
 
 ### 5. Production Orders
@@ -199,7 +198,9 @@ flowchart TB
 5. Outputs recorded as production stock movements
 
 ### 6. Inventory
-- **Stock Levels**: Real-time view of quantity per item + location + batch + UOM
+- **Stock Levels**: Real-time view of quantity per item + location + batch + UOM, with reserved/available split
+- **Reservations**: Click reserved qty to see which production orders hold the stock
+- **Bin Labels**: Print QR label per inventory row (encodes item + location + batch + UOM). Label stays valid through partial picks — no reprint needed when qty changes
 - **Stock Movements**: Full audit trail of all changes (INBOUND, OUTBOUND, ADJUSTMENT, TRANSFER, PRODUCTION)
 
 ### 7. Excel Import

@@ -19,8 +19,8 @@ flowchart TB
     subgraph ACTIVITIES["fa:fa-tasks  Aktivitas Harian"]
         LOGIN["fa:fa-sign-in-alt  **Login**<br/>Ketik username & password"]
         TYPE["fa:fa-keyboard  **Input Data**<br/>Isi formulir untuk item,<br/>UOM, gudang"]
-        SCAN_IN["fa:fa-qrcode  **Scan Inbound**<br/>Pindai QR pada barang masuk"]
-        SCAN_OUT["fa:fa-barcode  **Scan Outbound**<br/>Pindai QR untuk pengeluaran parsial"]
+        SCAN_IN["fa:fa-qrcode  **Terima Inbound**<br/>Input barang masuk, cetak label bin"]
+        SCAN_OUT["fa:fa-barcode  **Scan Outbound**<br/>Pindai QR bin, input qty (parsial ok)"]
         APPROVE["fa:fa-check-circle  **Konfirmasi**<br/>Setujui transaksi"]
         VIEW["fa:fa-chart-bar  **Lihat Laporan**<br/>Stok & pergerakan barang"]
         PRINT["fa:fa-print  **Cetak Label**<br/>Buat label QR"]
@@ -58,12 +58,12 @@ flowchart TB
 flowchart LR
     A["fa:fa-mobile-alt<br/>**Buka Aplikasi**<br/>di tablet/HP"] --> B["fa:fa-sign-in-alt<br/>**Login**<br/>masukkan kredensial"]
     B --> C["fa:fa-truck-loading<br/>**Barang Tiba**<br/>di gudang"]
-    C --> D["fa:fa-qrcode<br/>**Pindai QR Code**<br/>pada setiap item"]
-    D --> E["fa:fa-keyboard<br/>**Masukkan Jumlah**<br/>& lokasi"]
+    C --> D["fa:fa-keyboard<br/>**Input Penerimaan**<br/>item, qty, lokasi, batch"]
+    D --> E["fa:fa-print<br/>**Cetak Label Bin**<br/>tempel di rak/bin"]
     E --> F["fa:fa-check<br/>**Konfirmasi Inbound**<br/>stok BERTAMBAH"]
 
     F --> G["fa:fa-clipboard-list<br/>**Pilih Production Order**<br/>dari daftar"]
-    G --> H["fa:fa-barcode<br/>**Pindai QR Material**<br/>outbound parsial"]
+    G --> H["fa:fa-qrcode<br/>**Pindai QR Bin**<br/>auto-isi item/lokasi/batch, input qty"]
     H --> I["fa:fa-minus-circle<br/>**Keluarkan Material**<br/>stok BERKURANG"]
     I --> J["fa:fa-check-double<br/>**Tandai Selesai**"]
 
@@ -73,9 +73,9 @@ flowchart LR
     classDef done fill:#d1fae5,stroke:#059669,color:#000
 
     class A,B,C start
-    class D,H scan
-    class E,G input
-    class F,I,J done
+    class H scan
+    class D,G input
+    class E,F,I,J done
 ```
 
 ---
@@ -93,8 +93,9 @@ flowchart TB
         WH["fa:fa-warehouse<br/>**Tambah Gudang**<br/>& lokasi"]
     end
 
-    SETUP --> PRINT["fa:fa-print<br/>**Cetak Label QR**<br/>untuk setiap item"]
-    PRINT --> STICK["fa:fa-tag<br/>**Tempel Label**<br/>pada barang fisik"]
+    SETUP --> INBOUND["fa:fa-truck-loading<br/>**Terima Inbound**<br/>tambah stok ke bin"]
+    INBOUND --> PRINT["fa:fa-print<br/>**Cetak Label Bin**<br/>dari halaman Inventory"]
+    PRINT --> STICK["fa:fa-tag<br/>**Tempel Label**<br/>pada bin/rak (reusable)"]
     STICK --> READY(["fa:fa-flag-checkered  Siap untuk Operator<br/>memindai"])
 
     classDef admin fill:#ede9fe,stroke:#7c3aed,color:#000,stroke-width:2px
@@ -102,7 +103,7 @@ flowchart TB
     classDef physical fill:#fee2e2,stroke:#dc2626,color:#000
 
     class START,READY admin
-    class ITEM,UOM,WH,PRINT action
+    class ITEM,UOM,WH,INBOUND,PRINT action
     class STICK physical
 ```
 

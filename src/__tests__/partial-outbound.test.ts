@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { parseQrPayload, encodeQrPayload, type QrPayload } from "@/lib/qr-code"
+import { parseQrPayload, encodeQrPayload, isV2, type QrPayloadV1 } from "@/lib/qr-code"
 
 /**
  * Tests for partial outbound QR scanning logic.
@@ -14,6 +14,7 @@ import { parseQrPayload, encodeQrPayload, type QrPayload } from "@/lib/qr-code"
 function simulateQrScan(qrText: string, items: Array<{ code: string; id: string }>) {
   const payload = parseQrPayload(qrText)
   if (!payload) return null
+  if (isV2(payload)) return null
 
   const matchedItem = items.find((i) => i.code === payload.item)
 
@@ -40,7 +41,7 @@ function getPartialInfo(qrOriginalQty: number | null, outboundQty: number) {
 }
 
 describe("Partial outbound QR scanning", () => {
-  const samplePayload: QrPayload = {
+  const samplePayload: QrPayloadV1 = {
     id: "item-abc",
     txn: "IN-20260410-001",
     item: "RM-001",
@@ -223,8 +224,8 @@ describe("Partial outbound QR scanning", () => {
     })
 
     it("should support multiple items with different partial amounts", () => {
-      const line1Payload: QrPayload = { ...samplePayload, qty: 10, item: "RM-001" }
-      const line2Payload: QrPayload = { ...samplePayload, qty: 20, item: "RM-002" }
+      const line1Payload: QrPayloadV1 = { ...samplePayload, qty: 10, item: "RM-001" }
+      const line2Payload: QrPayloadV1 = { ...samplePayload, qty: 20, item: "RM-002" }
 
       const scan1 = simulateQrScan(encodeQrPayload(line1Payload), items)
       const scan2 = simulateQrScan(encodeQrPayload(line2Payload), items)

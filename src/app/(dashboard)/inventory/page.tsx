@@ -51,6 +51,7 @@ export default async function InventoryPage() {
     itemName: record.item.name,
     itemCategory: record.item.category,
     locationCode: `${record.location.warehouse.code} / ${record.location.code}`,
+    locationCodeRaw: record.location.code,
     batchLot: record.batchLot,
     quantity: Number(record.quantity),
     reservedQuantity: Number(record.reservedQuantity),

@@ -19,8 +19,8 @@ flowchart TB
     subgraph ACTIVITIES["fa:fa-tasks  Daily Activities"]
         LOGIN["fa:fa-sign-in-alt  **Login**<br/>Type username & password"]
         TYPE["fa:fa-keyboard  **Input Data**<br/>Fill forms for items,<br/>UOM, warehouses"]
-        SCAN_IN["fa:fa-qrcode  **Scan Inbound**<br/>Scan QR on incoming goods"]
-        SCAN_OUT["fa:fa-barcode  **Scan Outbound**<br/>Scan QR for partial issuing"]
+        SCAN_IN["fa:fa-qrcode  **Receive Inbound**<br/>Enter received goods, print bin labels"]
+        SCAN_OUT["fa:fa-barcode  **Scan Outbound**<br/>Scan bin QR, enter qty (partial ok)"]
         APPROVE["fa:fa-check-circle  **Confirm**<br/>Approve transactions"]
         VIEW["fa:fa-chart-bar  **View Reports**<br/>Stock levels & movements"]
         PRINT["fa:fa-print  **Print Labels**<br/>Generate QR labels"]
@@ -58,12 +58,12 @@ flowchart TB
 flowchart LR
     A["fa:fa-mobile-alt<br/>**Open App**<br/>on tablet/phone"] --> B["fa:fa-sign-in-alt<br/>**Login**<br/>enter credentials"]
     B --> C["fa:fa-truck-loading<br/>**Goods Arrive**<br/>at warehouse"]
-    C --> D["fa:fa-qrcode<br/>**Scan QR Code**<br/>on each item"]
-    D --> E["fa:fa-keyboard<br/>**Enter Quantity**<br/>& location"]
+    C --> D["fa:fa-keyboard<br/>**Enter Received**<br/>item, qty, location, batch"]
+    D --> E["fa:fa-print<br/>**Print Bin Label**<br/>stick on shelf/bin"]
     E --> F["fa:fa-check<br/>**Confirm Inbound**<br/>stock goes UP"]
 
     F --> G["fa:fa-clipboard-list<br/>**Pick Production Order**<br/>from list"]
-    G --> H["fa:fa-barcode<br/>**Scan Material QR**<br/>partial outbound"]
+    G --> H["fa:fa-qrcode<br/>**Scan Bin QR**<br/>auto-fill item/loc/batch, enter qty"]
     H --> I["fa:fa-minus-circle<br/>**Issue Material**<br/>stock goes DOWN"]
     I --> J["fa:fa-check-double<br/>**Mark Complete**"]
 
@@ -73,9 +73,9 @@ flowchart LR
     classDef done fill:#d1fae5,stroke:#059669,color:#000
 
     class A,B,C start
-    class D,H scan
-    class E,G input
-    class F,I,J done
+    class H scan
+    class D,G input
+    class E,F,I,J done
 ```
 
 ---
@@ -93,8 +93,9 @@ flowchart TB
         WH["fa:fa-warehouse<br/>**Add Warehouses**<br/>& locations"]
     end
 
-    SETUP --> PRINT["fa:fa-print<br/>**Print QR Labels**<br/>for each item"]
-    PRINT --> STICK["fa:fa-tag<br/>**Stick Labels**<br/>on physical goods"]
+    SETUP --> INBOUND["fa:fa-truck-loading<br/>**Receive Inbound**<br/>adds stock to bins"]
+    INBOUND --> PRINT["fa:fa-print<br/>**Print Bin Labels**<br/>from Inventory page"]
+    PRINT --> STICK["fa:fa-tag<br/>**Stick Labels**<br/>on bins/shelves (reusable)"]
     STICK --> READY(["fa:fa-flag-checkered  Ready for Operators<br/>to scan"])
 
     classDef admin fill:#ede9fe,stroke:#7c3aed,color:#000,stroke-width:2px
@@ -102,7 +103,7 @@ flowchart TB
     classDef physical fill:#fee2e2,stroke:#dc2626,color:#000
 
     class START,READY admin
-    class ITEM,UOM,WH,PRINT action
+    class ITEM,UOM,WH,INBOUND,PRINT action
     class STICK physical
 ```
 
