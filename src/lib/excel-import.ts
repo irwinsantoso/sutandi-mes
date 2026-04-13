@@ -9,7 +9,8 @@ export type ImportType =
   | "warehouses"
   | "uom-conversions"
   | "inventory"
-  | "bom";
+  | "bom"
+  | "production-orders";
 
 export interface ImportTypeConfig {
   label: string;
@@ -245,6 +246,106 @@ export const IMPORT_CONFIGS: Record<ImportType, ImportTypeConfig> = {
         type: "string",
         description: "UOM code (must exist, should be item base UOM)",
         example: "PCS",
+      },
+    ],
+  },
+
+  "production-orders": {
+    label: "Production Orders",
+    description:
+      "Import scheduled production orders. Rows with the same Order Number are grouped into one order (materials + outputs). Leave Order Number blank on all rows of a group to auto-generate one per unique Description.",
+    sheetName: "Production Orders",
+    columns: [
+      {
+        key: "orderNumber",
+        header: "Order Number",
+        required: false,
+        type: "string",
+        description: "Unique order number. Leave blank to auto-generate (grouped by Description).",
+        example: "PO-20260413-001",
+      },
+      {
+        key: "description",
+        header: "Description",
+        required: true,
+        type: "string",
+        description: "Order description. Also used as group key when Order Number is blank.",
+        example: "Assemble Widget A - Batch 1",
+      },
+      {
+        key: "orderType",
+        header: "Order Type",
+        required: true,
+        type: "enum",
+        enumValues: ["WIP", "FINISHED_GOOD"],
+        description: "Production order type",
+        example: "FINISHED_GOOD",
+      },
+      {
+        key: "status",
+        header: "Status",
+        required: false,
+        type: "enum",
+        enumValues: ["DRAFT", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+        description: "Order status (defaults to DRAFT)",
+        example: "DRAFT",
+      },
+      {
+        key: "plannedStartDate",
+        header: "Planned Start Date",
+        required: false,
+        type: "string",
+        description: "Planned start (YYYY-MM-DD)",
+        example: "2026-04-15",
+      },
+      {
+        key: "plannedEndDate",
+        header: "Planned End Date",
+        required: false,
+        type: "string",
+        description: "Planned end (YYYY-MM-DD)",
+        example: "2026-04-20",
+      },
+      {
+        key: "lineType",
+        header: "Line Type",
+        required: true,
+        type: "enum",
+        enumValues: ["MATERIAL", "OUTPUT"],
+        description: "Whether this line is a material (input) or output",
+        example: "MATERIAL",
+      },
+      {
+        key: "itemCode",
+        header: "Item Code",
+        required: true,
+        type: "string",
+        description: "Item code (must exist)",
+        example: "RM-101",
+      },
+      {
+        key: "quantity",
+        header: "Quantity",
+        required: true,
+        type: "number",
+        description: "Required (materials) or target (outputs) quantity",
+        example: "10",
+      },
+      {
+        key: "uomCode",
+        header: "UOM Code",
+        required: true,
+        type: "string",
+        description: "UOM code (must exist)",
+        example: "PCS",
+      },
+      {
+        key: "notes",
+        header: "Notes",
+        required: false,
+        type: "string",
+        description: "Optional notes for the production order (taken from the first row of each group)",
+        example: "Priority batch for customer X",
       },
     ],
   },

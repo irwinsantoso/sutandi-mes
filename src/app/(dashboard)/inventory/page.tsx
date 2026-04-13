@@ -27,6 +27,17 @@ export default async function InventoryPage() {
           code: true,
         },
       },
+      reservations: {
+        include: {
+          productionOrderMaterial: {
+            select: {
+              productionOrder: {
+                select: { id: true, orderNumber: true, status: true },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: [
       { item: { code: "asc" } },
@@ -46,6 +57,12 @@ export default async function InventoryPage() {
     availableQuantity: Number(record.quantity) - Number(record.reservedQuantity),
     uomCode: record.uom.code,
     updatedAt: record.updatedAt.toISOString(),
+    reservations: record.reservations.map((r) => ({
+      orderId: r.productionOrderMaterial.productionOrder.id,
+      orderNumber: r.productionOrderMaterial.productionOrder.orderNumber,
+      orderStatus: r.productionOrderMaterial.productionOrder.status,
+      quantity: Number(r.quantity),
+    })),
   }));
 
   return (

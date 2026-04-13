@@ -296,6 +296,8 @@ model ProductionOrderMaterial {
   item            Item            @relation(fields: [itemId], references: [id])
   uom             Uom             @relation(fields: [uomId], references: [id])
 
+  reservations InventoryReservation[]
+
   @@map("production_order_materials")
 }
 
@@ -334,8 +336,27 @@ model Inventory {
   location Location @relation(fields: [locationId], references: [id])
   uom      Uom      @relation(fields: [uomId], references: [id])
 
+  reservations InventoryReservation[]
+
   @@unique([itemId, locationId, batchLot, uomId])
   @@map("inventory")
+}
+
+model InventoryReservation {
+  id                        String   @id @default(cuid())
+  inventoryId               String   @map("inventory_id")
+  productionOrderMaterialId String   @map("production_order_material_id")
+  quantity                  Decimal  @db.Decimal(18, 4)
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  inventory               Inventory               @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  productionOrderMaterial ProductionOrderMaterial @relation(fields: [productionOrderMaterialId], references: [id], onDelete: Cascade)
+
+  @@unique([inventoryId, productionOrderMaterialId])
+  @@index([inventoryId])
+  @@index([productionOrderMaterialId])
+  @@map("inventory_reservations")
 }
 
 model StockMovement {

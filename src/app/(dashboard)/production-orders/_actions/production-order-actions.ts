@@ -247,6 +247,24 @@ export async function startProductionOrder(id: string) {
               reservedQuantity: { increment: toReserve },
             },
           })
+          // Record which production-order material reserved this stock so
+          // the inventory UI can show a per-order breakdown.
+          await tx.inventoryReservation.upsert({
+            where: {
+              inventoryId_productionOrderMaterialId: {
+                inventoryId: inv.id,
+                productionOrderMaterialId: material.id,
+              },
+            },
+            create: {
+              inventoryId: inv.id,
+              productionOrderMaterialId: material.id,
+              quantity: toReserve,
+            },
+            update: {
+              quantity: { increment: toReserve },
+            },
+          })
           remaining -= toReserve
         }
       }
@@ -295,35 +313,22 @@ export async function completeProductionOrder(id: string) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Release any remaining reservations (required - consumed = unconsumed reserved)
+      // Release remaining reservations by walking the reservation rows owned
+      // by this order's materials (per-PO accuracy; avoids releasing stock
+      // held by other production orders).
       for (const material of order.materials) {
-        const requiredQty = Number(material.requiredQuantity)
-        const consumedQty = Number(material.consumedQuantity)
-        const toRelease = requiredQty - consumedQty
-
-        if (toRelease <= 0) continue
-
-        const inventoryRecords = await tx.inventory.findMany({
-          where: {
-            itemId: material.itemId,
-            uomId: material.uomId,
-            reservedQuantity: { gt: 0 },
-          },
+        const reservations = await tx.inventoryReservation.findMany({
+          where: { productionOrderMaterialId: material.id },
         })
-
-        let remaining = toRelease
-        for (const inv of inventoryRecords) {
-          if (remaining <= 0) break
-          const reserved = Number(inv.reservedQuantity)
-          const releaseAmount = Math.min(reserved, remaining)
+        for (const r of reservations) {
           await tx.inventory.update({
-            where: { id: inv.id },
-            data: {
-              reservedQuantity: { decrement: releaseAmount },
-            },
+            where: { id: r.inventoryId },
+            data: { reservedQuantity: { decrement: r.quantity } },
           })
-          remaining -= releaseAmount
         }
+        await tx.inventoryReservation.deleteMany({
+          where: { productionOrderMaterialId: material.id },
+        })
       }
 
       await tx.productionOrder.update({
@@ -369,34 +374,18 @@ export async function cancelProductionOrder(id: string) {
       // Release reserved quantities if order was in progress
       if (order.status === "IN_PROGRESS") {
         for (const material of order.materials) {
-          const requiredQty = Number(material.requiredQuantity)
-          const consumedQty = Number(material.consumedQuantity)
-          const toRelease = requiredQty - consumedQty
-
-          if (toRelease <= 0) continue
-
-          // Find inventory records with reservations for this item+uom
-          const inventoryRecords = await tx.inventory.findMany({
-            where: {
-              itemId: material.itemId,
-              uomId: material.uomId,
-              reservedQuantity: { gt: 0 },
-            },
+          const reservations = await tx.inventoryReservation.findMany({
+            where: { productionOrderMaterialId: material.id },
           })
-
-          let remaining = toRelease
-          for (const inv of inventoryRecords) {
-            if (remaining <= 0) break
-            const reserved = Number(inv.reservedQuantity)
-            const releaseAmount = Math.min(reserved, remaining)
+          for (const r of reservations) {
             await tx.inventory.update({
-              where: { id: inv.id },
-              data: {
-                reservedQuantity: { decrement: releaseAmount },
-              },
+              where: { id: r.inventoryId },
+              data: { reservedQuantity: { decrement: r.quantity } },
             })
-            remaining -= releaseAmount
           }
+          await tx.inventoryReservation.deleteMany({
+            where: { productionOrderMaterialId: material.id },
+          })
         }
       }
 

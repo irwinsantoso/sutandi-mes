@@ -1,10 +1,23 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
+
+export type ReservationInfo = {
+  orderId: string;
+  orderNumber: string;
+  orderStatus: string;
+  quantity: number;
+};
 
 export type InventoryRow = {
   id: string;
@@ -18,6 +31,7 @@ export type InventoryRow = {
   availableQuantity: number;
   uomCode: string;
   updatedAt: string;
+  reservations: ReservationInfo[];
 };
 
 const categoryColorMap: Record<string, string> = {
@@ -111,14 +125,68 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
     header: () => <div className="text-right">Reserved</div>,
     cell: ({ row }) => {
       const reserved = row.getValue("reservedQuantity") as number;
+      const reservations = row.original.reservations;
+      const uom = row.original.uomCode;
+
+      if (reserved <= 0) {
+        return <div className="text-right font-mono text-muted-foreground">-</div>;
+      }
+
+      const formatted = reserved.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 4,
+      });
+
+      if (reservations.length === 0) {
+        return (
+          <div className="text-right font-mono text-amber-600 dark:text-amber-400">
+            {formatted}
+          </div>
+        );
+      }
+
       return (
-        <div className={`text-right font-mono ${reserved > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
-          {reserved > 0
-            ? reserved.toLocaleString("en-US", {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 4,
-              })
-            : "-"}
+        <div className="text-right">
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto px-1 py-0.5 font-mono text-amber-600 underline-offset-2 hover:underline dark:text-amber-400"
+                />
+              }
+            >
+              {formatted}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 p-0">
+              <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+                Reserved by production orders
+              </div>
+              <ul className="divide-y">
+                {reservations.map((r) => (
+                  <li
+                    key={r.orderId}
+                    className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                  >
+                    <Link
+                      href={`/production-orders/${r.orderId}`}
+                      className="font-mono text-primary hover:underline"
+                    >
+                      {r.orderNumber}
+                    </Link>
+                    <span className="font-mono">
+                      {r.quantity.toLocaleString("en-US", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 4,
+                      })}{" "}
+                      <span className="text-muted-foreground">{uom}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
         </div>
       );
     },

@@ -56,6 +56,9 @@ export async function POST(request: NextRequest) {
       case "bom":
         results = await importBom(rows, session.user.id);
         break;
+      case "production-orders":
+        results = await importProductionOrders(rows, session.user.id);
+        break;
       default:
         return NextResponse.json(
           { error: "Unsupported import type" },
@@ -579,6 +582,179 @@ async function importBom(
       for (const o of outputs) {
         results.push({ rowIndex: o.rowIndex, success: true });
       }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      for (const row of groupRows) {
+        results.push({ rowIndex: row.rowIndex, success: false, error: msg });
+      }
+    }
+  }
+
+  return results;
+}
+
+// ============================================================
+// PRODUCTION ORDERS IMPORT
+// ============================================================
+
+// Excel may hand us either a string "2026-04-15" or a serial number. Accept both.
+function parseDate(value: string | number | null): Date | null {
+  if (value === null || value === "") return null;
+  if (typeof value === "number") {
+    // Excel serial date: days since 1899-12-30 (handles the 1900 leap-year bug).
+    const ms = Math.round((value - 25569) * 86400 * 1000);
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(String(value));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+async function importProductionOrders(
+  rows: Array<{ rowIndex: number; data: RowData }>,
+  userId: string
+): Promise<RowResult[]> {
+  const items = await prisma.item.findMany({ select: { id: true, code: true } });
+  const itemByCode = new Map(items.map((i) => [i.code.toUpperCase(), i]));
+
+  const uoms = await prisma.uom.findMany();
+  const uomByCode = new Map(uoms.map((u) => [u.code.toUpperCase(), u]));
+
+  const existingOrders = await prisma.productionOrder.findMany({
+    select: { orderNumber: true },
+  });
+  const existingOrderNumbers = new Set(
+    existingOrders.map((o) => o.orderNumber.toUpperCase())
+  );
+
+  // Group rows: by Order Number if provided, else by Description.
+  const groups = new Map<string, Array<{ rowIndex: number; data: RowData }>>();
+  for (const row of rows) {
+    const orderNumber = String(row.data.orderNumber ?? "").trim();
+    const description = String(row.data.description ?? "").trim();
+    const key = orderNumber || `__desc__${description}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(row);
+  }
+
+  const results: RowResult[] = [];
+
+  for (const [, groupRows] of groups) {
+    const head = groupRows[0].data;
+    const providedOrderNumber = String(head.orderNumber ?? "").trim();
+    const description = String(head.description ?? "").trim();
+    const orderType = String(head.orderType ?? "").trim().toUpperCase();
+    const status = String(head.status ?? "DRAFT").trim().toUpperCase() || "DRAFT";
+    const notes = head.notes ? String(head.notes).trim() : null;
+    const plannedStart = parseDate(head.plannedStartDate);
+    const plannedEnd = parseDate(head.plannedEndDate);
+
+    if (!description) {
+      for (const r of groupRows)
+        results.push({ rowIndex: r.rowIndex, success: false, error: "Description is required." });
+      continue;
+    }
+    if (orderType !== "WIP" && orderType !== "FINISHED_GOOD") {
+      for (const r of groupRows)
+        results.push({ rowIndex: r.rowIndex, success: false, error: `Invalid Order Type "${orderType}".` });
+      continue;
+    }
+    const validStatuses = ["DRAFT", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
+    if (!validStatuses.includes(status)) {
+      for (const r of groupRows)
+        results.push({ rowIndex: r.rowIndex, success: false, error: `Invalid Status "${status}".` });
+      continue;
+    }
+    if (providedOrderNumber && existingOrderNumbers.has(providedOrderNumber.toUpperCase())) {
+      for (const r of groupRows)
+        results.push({ rowIndex: r.rowIndex, success: false, error: `Order Number "${providedOrderNumber}" already exists.` });
+      continue;
+    }
+
+    const materials: Array<{ rowIndex: number; itemId: string; uomId: string; quantity: number }> = [];
+    const outputs: Array<{ rowIndex: number; itemId: string; uomId: string; quantity: number }> = [];
+    let groupValid = true;
+
+    for (const row of groupRows) {
+      const lineType = String(row.data.lineType ?? "").trim().toUpperCase();
+      const itemCode = String(row.data.itemCode ?? "").trim().toUpperCase();
+      const uomCode = String(row.data.uomCode ?? "").trim().toUpperCase();
+      const quantity = Number(row.data.quantity);
+
+      const item = itemByCode.get(itemCode);
+      if (!item) {
+        results.push({ rowIndex: row.rowIndex, success: false, error: `Item "${row.data.itemCode}" not found.` });
+        groupValid = false;
+        continue;
+      }
+      const uom = uomByCode.get(uomCode);
+      if (!uom) {
+        results.push({ rowIndex: row.rowIndex, success: false, error: `UOM "${row.data.uomCode}" not found.` });
+        groupValid = false;
+        continue;
+      }
+      if (isNaN(quantity) || quantity <= 0) {
+        results.push({ rowIndex: row.rowIndex, success: false, error: "Quantity must be a positive number." });
+        groupValid = false;
+        continue;
+      }
+      if (lineType === "MATERIAL") {
+        materials.push({ rowIndex: row.rowIndex, itemId: item.id, uomId: uom.id, quantity });
+      } else if (lineType === "OUTPUT") {
+        outputs.push({ rowIndex: row.rowIndex, itemId: item.id, uomId: uom.id, quantity });
+      } else {
+        results.push({ rowIndex: row.rowIndex, success: false, error: `Invalid Line Type "${lineType}".` });
+        groupValid = false;
+      }
+    }
+
+    if (!groupValid) continue;
+    if (materials.length === 0) {
+      for (const r of groupRows)
+        results.push({ rowIndex: r.rowIndex, success: false, error: "Production order needs at least one MATERIAL line." });
+      continue;
+    }
+    if (outputs.length === 0) {
+      for (const r of groupRows)
+        results.push({ rowIndex: r.rowIndex, success: false, error: "Production order needs at least one OUTPUT line." });
+      continue;
+    }
+
+    try {
+      const orderNumber = providedOrderNumber || (await generateTransactionNumber("PO"));
+
+      await prisma.productionOrder.create({
+        data: {
+          orderNumber,
+          type: orderType as "WIP" | "FINISHED_GOOD",
+          description,
+          status: status as "DRAFT" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED",
+          plannedStartDate: plannedStart,
+          plannedEndDate: plannedEnd,
+          notes,
+          createdById: userId,
+          materials: {
+            create: materials.map((m) => ({
+              itemId: m.itemId,
+              uomId: m.uomId,
+              requiredQuantity: m.quantity,
+              consumedQuantity: 0,
+            })),
+          },
+          outputs: {
+            create: outputs.map((o) => ({
+              itemId: o.itemId,
+              uomId: o.uomId,
+              targetQuantity: o.quantity,
+              producedQuantity: 0,
+            })),
+          },
+        },
+      });
+      existingOrderNumbers.add(orderNumber.toUpperCase());
+
+      for (const m of materials) results.push({ rowIndex: m.rowIndex, success: true });
+      for (const o of outputs) results.push({ rowIndex: o.rowIndex, success: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       for (const row of groupRows) {

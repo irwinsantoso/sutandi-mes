@@ -196,7 +196,9 @@ export async function confirmOutboundTransaction(id: string) {
               },
             })
 
-            // Release the reserved quantity for the consumed amount
+            // Release the reservation owned by this production order for
+            // the consumed amount. Prefer the reservation row tied to this
+            // specific PO material so we don't release stock held by other POs.
             const inventoryRecord = await tx.inventory.findUnique({
               where: {
                 itemId_locationId_batchLot_uomId: {
@@ -207,17 +209,36 @@ export async function confirmOutboundTransaction(id: string) {
                 },
               },
             })
-            if (inventoryRecord && Number(inventoryRecord.reservedQuantity) > 0) {
-              const releaseAmount = Math.min(
-                Number(inventoryRecord.reservedQuantity),
-                Number(item.quantityInBaseUom)
-              )
-              await tx.inventory.update({
-                where: { id: inventoryRecord.id },
-                data: {
-                  reservedQuantity: { decrement: releaseAmount },
+            if (inventoryRecord) {
+              const reservation = await tx.inventoryReservation.findUnique({
+                where: {
+                  inventoryId_productionOrderMaterialId: {
+                    inventoryId: inventoryRecord.id,
+                    productionOrderMaterialId: matchingMaterial.id,
+                  },
                 },
               })
+              const releaseAmount = Math.min(
+                Number(reservation?.quantity ?? inventoryRecord.reservedQuantity),
+                Number(item.quantityInBaseUom)
+              )
+              if (releaseAmount > 0) {
+                await tx.inventory.update({
+                  where: { id: inventoryRecord.id },
+                  data: { reservedQuantity: { decrement: releaseAmount } },
+                })
+                if (reservation) {
+                  const remaining = Number(reservation.quantity) - releaseAmount
+                  if (remaining <= 0) {
+                    await tx.inventoryReservation.delete({ where: { id: reservation.id } })
+                  } else {
+                    await tx.inventoryReservation.update({
+                      where: { id: reservation.id },
+                      data: { quantity: remaining },
+                    })
+                  }
+                }
+              }
             }
           }
         }
