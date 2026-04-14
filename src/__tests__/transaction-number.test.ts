@@ -29,7 +29,7 @@ describe("Transaction number format", () => {
   })
 
   it("should start at 1 when no latest exists", () => {
-    const latest: string | null = null
+    const latest = null as string | null
     const seq = latest ? parseInt(latest.split("-")[2]) + 1 : 1
     expect(seq).toBe(1)
   })
