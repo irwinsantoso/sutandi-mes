@@ -70,7 +70,7 @@ export async function updateItem(
     baseUomId: string;
   }
 ): Promise<{ success: true } | { success: false; error: string }> {
-  let itemId = id;
+  const itemId = id;
 
   try {
     const parsed = itemSchema.parse(data);
