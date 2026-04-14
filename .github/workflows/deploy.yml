@@ -1,0 +1,38 @@
+name: Deploy (Windows)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: E:\sutandi-mes
+    steps:
+      - name: Stop service
+        run: |
+          $svc = Get-Service SutandiMES -ErrorAction SilentlyContinue
+          if ($svc -and $svc.Status -eq 'Running') { Stop-Service SutandiMES -Force }
+
+      - name: Pull latest
+        run: |
+          git fetch origin master
+          git reset --hard origin/master
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Prisma migrate + generate
+        run: |
+          npx prisma migrate deploy
+          npx prisma generate
+
+      - name: Build
+        run: npm run build
+
+      - name: Start service
+        run: Start-Service SutandiMES
