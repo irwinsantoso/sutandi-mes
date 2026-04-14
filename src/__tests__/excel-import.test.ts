@@ -193,25 +193,14 @@ describe("parseExcelFile — items", () => {
     expect(result.rows[3].errors).toContain('"Base UOM Code" is required.');
   });
 
-  it("should flag invalid enum values for category", () => {
+  it("should accept arbitrary category strings at parse time (validated against DB at import)", () => {
     const result = parseRows("items", [
       headers,
-      ["RM-001", "Steel", null, "INVALID_CAT", "PCS"],
-    ]);
-
-    expect(result.rows[0].errors.length).toBe(1);
-    expect(result.rows[0].errors[0]).toContain("must be one of");
-    expect(result.rows[0].errors[0]).toContain("INVALID_CAT");
-  });
-
-  it("should normalise enum values to uppercase", () => {
-    const result = parseRows("items", [
-      headers,
-      ["RM-001", "Steel", null, "raw_material", "PCS"],
+      ["RM-001", "Steel", null, "CUSTOM_CATEGORY", "PCS"],
     ]);
 
     expect(result.rows[0].errors).toHaveLength(0);
-    expect(result.rows[0].data.category).toBe("RAW_MATERIAL");
+    expect(result.rows[0].data.category).toBe("CUSTOM_CATEGORY");
   });
 
   it("description should be optional", () => {
@@ -598,12 +587,14 @@ describe("parseExcelFile — edge cases", () => {
   });
 
   it("should handle a mix of valid and invalid rows", () => {
+    // Category is validated at import time (against the DB), not at parse
+    // time, so parse-time validity only checks required fields + UOM header.
     const result = parseRows("items", [
       ["Code", "Name", "Description", "Category", "Base UOM Code"],
       ["RM-001", "Steel", null, "RAW_MATERIAL", "PCS"], // valid
-      ["", "Missing Code", null, "WIP", "PCS"], // invalid
+      ["", "Missing Code", null, "WIP", "PCS"], // invalid (missing code)
       ["FG-001", "Widget", null, "FINISHED_GOOD", "BOX"], // valid
-      ["PK-001", "Box", null, "NONSENSE", "PCS"], // invalid (bad enum)
+      ["PK-001", "Box", null, "", "PCS"], // invalid (missing category)
     ]);
 
     expect(result.totalRows).toBe(4);

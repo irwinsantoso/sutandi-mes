@@ -81,15 +81,9 @@ export const IMPORT_CONFIGS: Record<ImportType, ImportTypeConfig> = {
         key: "category",
         header: "Category",
         required: true,
-        type: "enum",
-        enumValues: [
-          "RAW_MATERIAL",
-          "WIP",
-          "FINISHED_GOOD",
-          "PACKAGING",
-          "CONSUMABLE",
-        ],
-        description: "Item category",
+        type: "string",
+        description:
+          "Item category code (must match an existing category, e.g. RAW_MATERIAL). Manage categories under Master Data → Item Categories.",
         example: "RAW_MATERIAL",
       },
       {

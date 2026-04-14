@@ -10,12 +10,15 @@ export default async function EditItemPage({
 }) {
   const { id } = await params;
 
-  const [item, uoms] = await Promise.all([
+  const [item, uoms, categories] = await Promise.all([
     prisma.item.findUnique({
       where: { id },
     }),
     prisma.uom.findMany({
       orderBy: { name: "asc" },
+    }),
+    prisma.itemCategory.findMany({
+      orderBy: { code: "asc" },
     }),
   ]);
 
@@ -31,12 +34,13 @@ export default async function EditItemPage({
       />
       <ItemForm
         uoms={uoms}
+        categories={categories}
         item={{
           id: item.id,
           code: item.code,
           name: item.name,
           description: item.description,
-          category: item.category,
+          categoryId: item.categoryId,
           baseUomId: item.baseUomId,
         }}
       />

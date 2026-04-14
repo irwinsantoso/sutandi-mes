@@ -10,6 +10,7 @@ export default async function ItemsPage() {
   const items = await prisma.item.findMany({
     include: {
       baseUom: true,
+      category: true,
     },
     orderBy: {
       createdAt: "desc",
@@ -20,7 +21,8 @@ export default async function ItemsPage() {
     id: item.id,
     code: item.code,
     name: item.name,
-    category: item.category,
+    categoryCode: item.category.code,
+    categoryName: item.category.name,
     baseUom: item.baseUom.name,
     isActive: item.isActive,
   }));

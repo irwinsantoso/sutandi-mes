@@ -29,35 +29,26 @@ const itemFormSchema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Code must be 50 characters or less"),
   name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
   description: z.string().optional(),
-  category: z.enum(["RAW_MATERIAL", "WIP", "FINISHED_GOOD", "PACKAGING", "CONSUMABLE"], {
-    message: "Category is required",
-  }),
+  categoryId: z.string().min(1, "Category is required"),
   baseUomId: z.string().min(1, "Base UOM is required"),
 });
 
 type ItemFormValues = z.infer<typeof itemFormSchema>;
 
-const categoryOptions = [
-  { value: "RAW_MATERIAL", label: "Raw Material" },
-  { value: "WIP", label: "WIP" },
-  { value: "FINISHED_GOOD", label: "Finished Good" },
-  { value: "PACKAGING", label: "Packaging" },
-  { value: "CONSUMABLE", label: "Consumable" },
-];
-
 interface ItemFormProps {
   uoms: { id: string; code: string; name: string }[];
+  categories: { id: string; code: string; name: string }[];
   item?: {
     id: string;
     code: string;
     name: string;
     description: string | null;
-    category: "RAW_MATERIAL" | "WIP" | "FINISHED_GOOD" | "PACKAGING" | "CONSUMABLE";
+    categoryId: string;
     baseUomId: string;
   };
 }
 
-export function ItemForm({ uoms, item }: ItemFormProps) {
+export function ItemForm({ uoms, categories, item }: ItemFormProps) {
   const [isPending, startTransition] = useTransition();
   const isEditing = !!item;
 
@@ -67,7 +58,7 @@ export function ItemForm({ uoms, item }: ItemFormProps) {
       code: item?.code ?? "",
       name: item?.name ?? "",
       description: item?.description ?? "",
-      category: item?.category ?? undefined,
+      categoryId: item?.categoryId ?? "",
       baseUomId: item?.baseUomId ?? "",
     },
   });
@@ -80,7 +71,7 @@ export function ItemForm({ uoms, item }: ItemFormProps) {
     formState: { errors },
   } = form;
 
-  const selectedCategory = watch("category");
+  const selectedCategoryId = watch("categoryId");
   const selectedBaseUomId = watch("baseUomId");
 
   const onSubmit = (values: ItemFormValues) => {
@@ -144,28 +135,28 @@ export function ItemForm({ uoms, item }: ItemFormProps) {
             <div className="space-y-2">
               <Label>Category</Label>
               <Select
-                value={selectedCategory ?? ""}
-                onValueChange={(val) => val && setValue("category", val as ItemFormValues["category"], { shouldValidate: true })}
+                value={selectedCategoryId}
+                onValueChange={(val) => val && setValue("categoryId", val, { shouldValidate: true })}
               >
-                <SelectTrigger className="w-full" aria-invalid={!!errors.category}>
+                <SelectTrigger className="w-full" aria-invalid={!!errors.categoryId}>
                   <SelectValue placeholder="Select category">
                     {(value: string | null) => {
                       if (!value) return "Select category";
-                      const opt = categoryOptions.find((o) => o.value === value);
-                      return opt ? opt.label : value;
+                      const cat = categories.find((c) => c.id === value);
+                      return cat ? cat.name : value;
                     }}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {categoryOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.category && (
-                <p className="text-sm text-destructive">{errors.category.message}</p>
+              {errors.categoryId && (
+                <p className="text-sm text-destructive">{errors.categoryId.message}</p>
               )}
             </div>
 

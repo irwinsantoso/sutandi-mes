@@ -9,7 +9,7 @@ export default async function InventoryPage() {
         select: {
           code: true,
           name: true,
-          category: true,
+          category: { select: { code: true } },
         },
       },
       location: {
@@ -49,7 +49,7 @@ export default async function InventoryPage() {
     id: record.id,
     itemCode: record.item.code,
     itemName: record.item.name,
-    itemCategory: record.item.category,
+    itemCategory: record.item.category.code,
     locationCode: `${record.location.warehouse.code} / ${record.location.code}`,
     locationCodeRaw: record.location.code,
     batchLot: record.batchLot,

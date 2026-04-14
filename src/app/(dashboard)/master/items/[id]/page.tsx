@@ -14,14 +14,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { UomConversionClient } from "./_components/uom-conversion-client";
 
-const categoryLabelMap: Record<string, string> = {
-  RAW_MATERIAL: "Raw Material",
-  WIP: "WIP",
-  FINISHED_GOOD: "Finished Good",
-  PACKAGING: "Packaging",
-  CONSUMABLE: "Consumable",
-};
-
 const categoryColorMap: Record<string, string> = {
   RAW_MATERIAL: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   WIP: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -41,6 +33,7 @@ export default async function ItemDetailPage({
     where: { id },
     include: {
       baseUom: true,
+      category: true,
       uomConversions: {
         include: {
           fromUom: true,
@@ -98,8 +91,8 @@ export default async function ItemDetailPage({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Category</p>
-                <Badge className={categoryColorMap[item.category] || ""}>
-                  {categoryLabelMap[item.category] || item.category}
+                <Badge className={categoryColorMap[item.category.code] ?? ""}>
+                  {item.category.name}
                 </Badge>
               </div>
               <div>

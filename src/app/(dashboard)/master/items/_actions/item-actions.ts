@@ -9,7 +9,7 @@ const itemSchema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Code must be 50 characters or less"),
   name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
   description: z.string().optional(),
-  category: z.enum(["RAW_MATERIAL", "WIP", "FINISHED_GOOD", "PACKAGING", "CONSUMABLE"]),
+  categoryId: z.string().min(1, "Category is required"),
   baseUomId: z.string().min(1, "Base UOM is required"),
 });
 
@@ -24,7 +24,7 @@ export async function createItem(data: {
   code: string;
   name: string;
   description?: string;
-  category: string;
+  categoryId: string;
   baseUomId: string;
 }): Promise<{ success: true } | { success: false; error: string }> {
   try {
@@ -43,7 +43,7 @@ export async function createItem(data: {
         code: parsed.code,
         name: parsed.name,
         description: parsed.description || null,
-        category: parsed.category as "RAW_MATERIAL" | "WIP" | "FINISHED_GOOD" | "PACKAGING" | "CONSUMABLE",
+        categoryId: parsed.categoryId,
         baseUomId: parsed.baseUomId,
       },
     });
@@ -66,7 +66,7 @@ export async function updateItem(
     code: string;
     name: string;
     description?: string;
-    category: string;
+    categoryId: string;
     baseUomId: string;
   }
 ): Promise<{ success: true } | { success: false; error: string }> {
@@ -89,7 +89,7 @@ export async function updateItem(
         code: parsed.code,
         name: parsed.name,
         description: parsed.description || null,
-        category: parsed.category as "RAW_MATERIAL" | "WIP" | "FINISHED_GOOD" | "PACKAGING" | "CONSUMABLE",
+        categoryId: parsed.categoryId,
         baseUomId: parsed.baseUomId,
       },
     });

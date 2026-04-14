@@ -98,6 +98,12 @@ async function importItems(
   const uoms = await prisma.uom.findMany();
   const uomByCode = new Map(uoms.map((u) => [u.code.toUpperCase(), u]));
 
+  // Pre-fetch categories; import rows must reference one by code.
+  const categories = await prisma.itemCategory.findMany();
+  const categoryByCode = new Map(
+    categories.map((c) => [c.code.toUpperCase(), c])
+  );
+
   // Pre-fetch existing item codes
   const existingItems = await prisma.item.findMany({
     select: { code: true },
@@ -111,16 +117,26 @@ async function importItems(
     const code = String(data.code ?? "").trim();
     const name = String(data.name ?? "").trim();
     const description = data.description ? String(data.description).trim() : null;
-    const category = String(data.category ?? "").trim().toUpperCase();
+    const categoryCode = String(data.category ?? "").trim().toUpperCase();
     const baseUomCode = String(data.baseUomCode ?? "").trim().toUpperCase();
 
-    if (!code || !name || !category || !baseUomCode) {
+    if (!code || !name || !categoryCode || !baseUomCode) {
       results.push({ rowIndex: row.rowIndex, success: false, error: "Missing required fields." });
       continue;
     }
 
     if (existingCodes.has(code.toUpperCase())) {
       results.push({ rowIndex: row.rowIndex, success: false, error: `Item code "${code}" already exists.` });
+      continue;
+    }
+
+    const category = categoryByCode.get(categoryCode);
+    if (!category) {
+      results.push({
+        rowIndex: row.rowIndex,
+        success: false,
+        error: `Category "${data.category}" not found. Add it under Master Data → Item Categories first.`,
+      });
       continue;
     }
 
@@ -136,7 +152,7 @@ async function importItems(
           code,
           name,
           description,
-          category: category as "RAW_MATERIAL" | "WIP" | "FINISHED_GOOD" | "PACKAGING" | "CONSUMABLE",
+          categoryId: category.id,
           baseUomId: uom.id,
         },
       });

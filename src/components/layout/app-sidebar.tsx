@@ -65,6 +65,7 @@ const navGroups = [
     label: "Master Data",
     items: [
       { title: "Items", href: "/master/items", icon: Boxes },
+      { title: "Item Categories", href: "/master/categories", icon: Boxes },
       { title: "UOM", href: "/master/uom", icon: Ruler },
       { title: "UOM Conversions", href: "/master/uom/conversions", icon: ArrowLeftRight },
       { title: "Warehouses", href: "/master/warehouses", icon: Warehouse },

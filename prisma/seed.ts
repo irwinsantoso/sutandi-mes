@@ -26,6 +26,27 @@ async function main() {
 
   console.log("Created UOMs:", { pcs: pcs.id, pack: pack.id, bundle: bundle.id })
 
+  // Create default item categories. Keep the original enum codes so existing
+  // seed data and imports that reference RAW_MATERIAL / WIP / etc. still work.
+  const defaultCategories = [
+    { code: "RAW_MATERIAL", name: "Raw Material" },
+    { code: "WIP", name: "WIP" },
+    { code: "FINISHED_GOOD", name: "Finished Good" },
+    { code: "PACKAGING", name: "Packaging" },
+    { code: "CONSUMABLE", name: "Consumable" },
+  ]
+  for (const cat of defaultCategories) {
+    await prisma.itemCategory.upsert({
+      where: { code: cat.code },
+      update: {},
+      create: cat,
+    })
+  }
+  console.log("Created item categories:", defaultCategories.map((c) => c.code).join(", "))
+
+  const rawMaterialCat = await prisma.itemCategory.findUniqueOrThrow({ where: { code: "RAW_MATERIAL" } })
+  const finishedGoodCat = await prisma.itemCategory.findUniqueOrThrow({ where: { code: "FINISHED_GOOD" } })
+
   // Create default users, one per role.
   // Access rights are enforced in the app by `role` (see docs/flow-process-document.md):
   //   ADMIN      - full access, master data & user management
@@ -86,7 +107,7 @@ async function main() {
     create: {
       code: "RM-001",
       name: "Raw Material A",
-      category: "RAW_MATERIAL",
+      categoryId: rawMaterialCat.id,
       baseUomId: pcs.id,
     },
   })
@@ -133,7 +154,7 @@ async function main() {
     create: {
       code: "FG-001",
       name: "Finished Product A",
-      category: "FINISHED_GOOD",
+      categoryId: finishedGoodCat.id,
       baseUomId: pcs.id,
     },
   })
@@ -145,7 +166,7 @@ async function main() {
     create: {
       code: "RM-002",
       name: "Raw Material B",
-      category: "RAW_MATERIAL",
+      categoryId: rawMaterialCat.id,
       baseUomId: pcs.id,
     },
   })
@@ -160,7 +181,7 @@ async function main() {
       code: "RM-003",
       name: "Raw Material C (Bundled)",
       description: "Raw material delivered in bundles of 10 packs (120 pcs).",
-      category: "RAW_MATERIAL",
+      categoryId: rawMaterialCat.id,
       baseUomId: pcs.id,
     },
   })
@@ -191,7 +212,7 @@ async function main() {
       code: "BUNDLE-001",
       name: "Starter Kit Bundle",
       description: "Kit containing 2x RM-001, 1x RM-002, and 1x FG-001",
-      category: "FINISHED_GOOD",
+      categoryId: finishedGoodCat.id,
       baseUomId: pcs.id,
     },
   })

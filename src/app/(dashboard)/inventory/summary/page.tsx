@@ -11,7 +11,7 @@ export default async function StockSummaryPage() {
           id: true,
           code: true,
           name: true,
-          category: true,
+          category: { select: { code: true } },
         },
       },
       location: {
@@ -124,7 +124,7 @@ export default async function StockSummaryPage() {
         itemId: record.item.id,
         itemCode: record.item.code,
         itemName: record.item.name,
-        itemCategory: record.item.category,
+        itemCategory: record.item.category.code,
         uomCode: record.uom.code,
         totalOnHand: qty,
         totalReserved: reserved,
