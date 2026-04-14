@@ -155,7 +155,6 @@ export default async function InboundDetailPage({
                   <TableHead>Qty (Base UOM)</TableHead>
                   <TableHead>Batch / Lot</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Expiry Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -177,11 +176,6 @@ export default async function InboundDetailPage({
                     <TableCell>{item.batchLot || "-"}</TableCell>
                     <TableCell>
                       {item.location.warehouse.code} / {item.location.code}
-                    </TableCell>
-                    <TableCell>
-                      {item.expiryDate
-                        ? format(item.expiryDate, "dd MMM yyyy")
-                        : "-"}
                     </TableCell>
                   </TableRow>
                 ))}

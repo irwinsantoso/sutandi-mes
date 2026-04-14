@@ -177,7 +177,6 @@ model InboundTransactionItem {
   batchLot             String?   @map("batch_lot")
   locationId           String    @map("location_id")
   qrCodeData           String?   @map("qr_code_data")
-  expiryDate           DateTime? @map("expiry_date")
   notes                String?
   createdAt            DateTime  @default(now()) @map("created_at")
 

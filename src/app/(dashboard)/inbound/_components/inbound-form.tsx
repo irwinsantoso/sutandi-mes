@@ -48,7 +48,6 @@ interface LineItem {
   uomId: string
   batchLot: string
   locationId: string
-  expiryDate: string
 }
 
 function getAvailableUoms(
@@ -93,7 +92,6 @@ export function InboundForm({ items, locations }: InboundFormProps) {
       uomId: "",
       batchLot: "",
       locationId: "",
-      expiryDate: "",
     },
   ])
 
@@ -162,7 +160,6 @@ export function InboundForm({ items, locations }: InboundFormProps) {
           uomId: li.uomId,
           batchLot: li.batchLot || undefined,
           locationId: li.locationId,
-          expiryDate: li.expiryDate || undefined,
         })),
       })
 
@@ -335,17 +332,6 @@ export function InboundForm({ items, locations }: InboundFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Expiry Date</Label>
-                  <Input
-                    type="date"
-                    value={li.expiryDate}
-                    onChange={(e) =>
-                      updateLineItem(li.key, "expiryDate", e.target.value)
-                    }
-                  />
                 </div>
 
                 <div className="flex items-end">

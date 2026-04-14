@@ -5,35 +5,58 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { prisma } from "@/lib/prisma";
 
-const kpiCards = [
-  {
-    title: "Total Items",
-    value: "1,248",
-    icon: Boxes,
-    description: "Registered items in master data",
-  },
-  {
-    title: "Pending Inbound",
-    value: "23",
-    icon: PackagePlus,
-    description: "Awaiting receipt confirmation",
-  },
-  {
-    title: "Active Production Orders",
-    value: "7",
-    icon: Factory,
-    description: "Currently in progress",
-  },
-  {
-    title: "Low Stock Items",
-    value: "15",
-    icon: AlertTriangle,
-    description: "Below minimum threshold",
-  },
-];
+export default async function DashboardPage() {
+  const [totalItems, pendingInbound, activeOrders, inventoryByItem] =
+    await Promise.all([
+      prisma.item.count({ where: { isActive: true } }),
+      prisma.inboundTransaction.count({ where: { status: "DRAFT" } }),
+      prisma.productionOrder.count({ where: { status: "IN_PROGRESS" } }),
+      prisma.inventory.groupBy({
+        by: ["itemId"],
+        _sum: { quantity: true, reservedQuantity: true },
+      }),
+    ]);
 
-export default function DashboardPage() {
+  const itemsWithStock = new Set(
+    inventoryByItem
+      .filter(
+        (r) =>
+          Number(r._sum.quantity ?? 0) - Number(r._sum.reservedQuantity ?? 0) >
+          0,
+      )
+      .map((r) => r.itemId),
+  );
+  const lowStockItems = Math.max(totalItems - itemsWithStock.size, 0);
+
+  const kpiCards = [
+    {
+      title: "Total Items",
+      value: totalItems.toLocaleString("en-US"),
+      icon: Boxes,
+      description: "Active items in master data",
+    },
+    {
+      title: "Pending Inbound",
+      value: pendingInbound.toLocaleString("en-US"),
+      icon: PackagePlus,
+      description: "Draft receipts awaiting confirmation",
+    },
+    {
+      title: "Active Production Orders",
+      value: activeOrders.toLocaleString("en-US"),
+      icon: Factory,
+      description: "Currently in progress",
+    },
+    {
+      title: "Low Stock Items",
+      value: lowStockItems.toLocaleString("en-US"),
+      icon: AlertTriangle,
+      description: "No available stock across locations",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>

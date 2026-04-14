@@ -9,34 +9,55 @@ export async function convertQuantity(
 ): Promise<Decimal> {
   if (fromUomId === toUomId) return quantity
 
-  const conversion = await prisma.uomConversion.findUnique({
-    where: {
-      itemId_fromUomId_toUomId: { itemId, fromUomId, toUomId },
-    },
+  const conversions = await prisma.uomConversion.findMany({
+    where: { itemId },
+    select: { fromUomId: true, toUomId: true, conversionFactor: true },
   })
 
-  if (conversion) {
-    return quantity.mul(conversion.conversionFactor)
+  // Build undirected graph: each conversion is a bidirectional edge.
+  // Forward edge multiplies by factor; reverse edge divides.
+  const adjacency = new Map<string, Array<{ to: string; factor: Decimal; invert: boolean }>>()
+  for (const c of conversions) {
+    if (!adjacency.has(c.fromUomId)) adjacency.set(c.fromUomId, [])
+    if (!adjacency.has(c.toUomId)) adjacency.set(c.toUomId, [])
+    adjacency.get(c.fromUomId)!.push({ to: c.toUomId, factor: c.conversionFactor, invert: false })
+    adjacency.get(c.toUomId)!.push({ to: c.fromUomId, factor: c.conversionFactor, invert: true })
   }
 
-  // Try reverse conversion
-  const reverse = await prisma.uomConversion.findUnique({
-    where: {
-      itemId_fromUomId_toUomId: {
-        itemId,
-        fromUomId: toUomId,
-        toUomId: fromUomId,
-      },
-    },
-  })
-
-  if (reverse) {
-    return quantity.div(reverse.conversionFactor)
+  // BFS from fromUomId to toUomId, recording the path.
+  const prev = new Map<string, { from: string; factor: Decimal; invert: boolean }>()
+  const queue: string[] = [fromUomId]
+  const visited = new Set<string>([fromUomId])
+  let found = false
+  while (queue.length) {
+    const node = queue.shift()!
+    if (node === toUomId) {
+      found = true
+      break
+    }
+    for (const edge of adjacency.get(node) ?? []) {
+      if (visited.has(edge.to)) continue
+      visited.add(edge.to)
+      prev.set(edge.to, { from: node, factor: edge.factor, invert: edge.invert })
+      queue.push(edge.to)
+    }
   }
 
-  throw new Error(
-    `No UOM conversion found for item ${itemId} from ${fromUomId} to ${toUomId}`
-  )
+  if (!found) {
+    throw new Error(
+      `No UOM conversion found for item ${itemId} from ${fromUomId} to ${toUomId}`
+    )
+  }
+
+  // Walk the path back and apply each hop.
+  let result = quantity
+  let cursor = toUomId
+  while (cursor !== fromUomId) {
+    const step = prev.get(cursor)!
+    result = step.invert ? result.div(step.factor) : result.mul(step.factor)
+    cursor = step.from
+  }
+  return result
 }
 
 export async function toBaseUom(

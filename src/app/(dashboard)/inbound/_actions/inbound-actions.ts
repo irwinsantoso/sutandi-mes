@@ -16,7 +16,6 @@ const inboundItemSchema = z.object({
   uomId: z.string().min(1, "UOM is required"),
   batchLot: z.string().optional(),
   locationId: z.string().min(1, "Location is required"),
-  expiryDate: z.string().optional(),
 })
 
 const createInboundSchema = z.object({
@@ -38,7 +37,6 @@ export async function createInboundTransaction(data: {
     uomId: string
     batchLot?: string
     locationId: string
-    expiryDate?: string
   }>
 }) {
   const session = await auth()
@@ -109,7 +107,6 @@ export async function createInboundTransaction(data: {
                 quantityInBaseUom: item.quantityInBaseUom,
                 batchLot: item.batchLot || null,
                 locationId: item.locationId,
-                expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
                 qrCodeData: qrPayload,
               }
             }),
