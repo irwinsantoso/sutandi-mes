@@ -30,7 +30,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Play, CheckCircle, XCircle, PackagePlus } from "lucide-react"
+import Link from "next/link"
+import { Play, CheckCircle, XCircle, PackagePlus, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import {
   startProductionOrder,
@@ -158,6 +159,14 @@ export function ProductionOrderDetailClient({
             <Button onClick={() => setStartDialogOpen(true)} disabled={isPending}>
               <Play className="mr-2 h-4 w-4" />
               Start Production
+            </Button>
+            <Button
+              variant="outline"
+              disabled={isPending}
+              render={<Link href={`/production-orders/${order.id}/edit`} />}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
             </Button>
             <Button
               variant="destructive"

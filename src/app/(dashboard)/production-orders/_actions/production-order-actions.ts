@@ -11,12 +11,14 @@ const materialSchema = z.object({
   itemId: z.string().min(1, "Item is required"),
   requiredQuantity: z.number().positive("Quantity must be positive"),
   uomId: z.string().min(1, "UOM is required"),
+  notes: z.string().optional(),
 })
 
 const outputSchema = z.object({
   itemId: z.string().min(1, "Item is required"),
   targetQuantity: z.number().positive("Quantity must be positive"),
   uomId: z.string().min(1, "UOM is required"),
+  notes: z.string().optional(),
 })
 
 const createSchema = z.object({
@@ -45,8 +47,8 @@ export async function createProductionOrder(data: {
   plannedStartDate?: string
   plannedEndDate?: string
   notes?: string
-  materials: { itemId: string; requiredQuantity: number; uomId: string }[]
-  outputs: { itemId: string; targetQuantity: number; uomId: string }[]
+  materials: { itemId: string; requiredQuantity: number; uomId: string; notes?: string }[]
+  outputs: { itemId: string; targetQuantity: number; uomId: string; notes?: string }[]
 }) {
   const parsed = createSchema.safeParse(data)
   if (!parsed.success) {
@@ -79,6 +81,7 @@ export async function createProductionOrder(data: {
             itemId: m.itemId,
             requiredQuantity: m.requiredQuantity,
             uomId: m.uomId,
+            notes: m.notes || null,
           })),
         },
         outputs: {
@@ -86,6 +89,7 @@ export async function createProductionOrder(data: {
             itemId: o.itemId,
             targetQuantity: o.targetQuantity,
             uomId: o.uomId,
+            notes: o.notes || null,
           })),
         },
       },

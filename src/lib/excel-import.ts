@@ -6,17 +6,21 @@ import * as XLSX from "xlsx";
 
 export type ImportType =
   | "items"
+  | "items-simple"
   | "warehouses"
   | "uom-conversions"
   | "inventory"
   | "bom"
-  | "production-orders";
+  | "production-orders"
+  | "kop-production-order";
 
 export interface ImportTypeConfig {
   label: string;
   description: string;
   columns: ColumnConfig[];
   sheetName: string;
+  /** If true, this import uses a dedicated parser (not the generic one). */
+  customParser?: boolean;
 }
 
 export interface ColumnConfig {
@@ -27,6 +31,8 @@ export interface ColumnConfig {
   enumValues?: string[];
   description?: string;
   example?: string;
+  /** Alternate header labels that also match this column (case-insensitive). */
+  aliases?: string[];
 }
 
 export interface ParsedRow {
@@ -93,6 +99,42 @@ export const IMPORT_CONFIGS: Record<ImportType, ImportTypeConfig> = {
         type: "string",
         description: "Code of the base unit of measure (must exist)",
         example: "PCS",
+      },
+    ],
+  },
+
+  "items-simple": {
+    label: "Items (Legacy 3-column)",
+    description:
+      "Import items from the legacy format (No. Barang / Deskripsi Barang / Nama Kategori Barang). Missing categories are auto-created. Base UOM is picked once at upload time.",
+    sheetName: "Sheet1",
+    columns: [
+      {
+        key: "code",
+        header: "Code",
+        aliases: ["No. Barang", "Kode Barang"],
+        required: true,
+        type: "string",
+        description: "Unique item code",
+        example: "1-1-000-01-151-57-0060",
+      },
+      {
+        key: "name",
+        header: "Name",
+        aliases: ["Deskripsi Barang", "Nama Barang"],
+        required: true,
+        type: "string",
+        description: "Item name / description",
+        example: "YKK API 9k 86903 TK10 6000",
+      },
+      {
+        key: "category",
+        header: "Category",
+        aliases: ["Nama Kategori Barang", "Kategori"],
+        required: true,
+        type: "string",
+        description: "Category name. Auto-created if it does not exist.",
+        example: "ALUMINIUM",
       },
     ],
   },
@@ -344,6 +386,15 @@ export const IMPORT_CONFIGS: Record<ImportType, ImportTypeConfig> = {
     ],
   },
 
+  "kop-production-order": {
+    label: "Production Order (KOP form)",
+    description:
+      "Import one production order from a KOP-format workbook (ASTERA-style). Reads the 'KOP' sheet: header block (rows 5-11), outputs under ITEM/UNIT, and materials under KEBUTUHAN MATERIAL + KEBUTUHAN AKSESORIS DAN PART. All item codes and UOM codes must already exist.",
+    sheetName: "KOP",
+    customParser: true,
+    columns: [],
+  },
+
   bom: {
     label: "Bill of Materials",
     description:
@@ -458,6 +509,15 @@ export function templateToBuffer(importType: ImportType): Buffer {
 // PARSING & VALIDATION
 // ============================================================
 
+function matchesColumn(cell: string, col: ColumnConfig): boolean {
+  const norm = cell.toLowerCase().replace(/\s+/g, " ").trim();
+  if (norm === col.header.toLowerCase()) return true;
+  for (const alias of col.aliases ?? []) {
+    if (norm === alias.toLowerCase()) return true;
+  }
+  return false;
+}
+
 export function parseExcelFile(
   buffer: ArrayBuffer,
   importType: ImportType
@@ -483,15 +543,33 @@ export function parseExcelFile(
     return { rows: [], totalRows: 0, validRows: 0, errorRows: 0 };
   }
 
-  // Map header row to column indices
-  const headerRow = rawData[0].map((h) =>
+  // Auto-detect the header row: scan the first 15 rows and pick the one that
+  // matches the most required columns (by header label or alias).
+  const requiredCols = config.columns.filter((c) => c.required);
+  let headerRowIndex = 0;
+  let bestScore = -1;
+  const scanUntil = Math.min(15, rawData.length);
+  for (let i = 0; i < scanUntil; i++) {
+    const cells = (rawData[i] ?? []).map((h) =>
+      h != null ? String(h).trim() : ""
+    );
+    let score = 0;
+    for (const col of requiredCols) {
+      if (cells.some((c) => c && matchesColumn(c, col))) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      headerRowIndex = i;
+      if (score === requiredCols.length) break;
+    }
+  }
+
+  const headerRow = (rawData[headerRowIndex] ?? []).map((h) =>
     h != null ? String(h).trim() : ""
   );
   const columnMap = new Map<string, number>();
   for (const col of config.columns) {
-    const idx = headerRow.findIndex(
-      (h) => h.toLowerCase() === col.header.toLowerCase()
-    );
+    const idx = headerRow.findIndex((h) => h && matchesColumn(h, col));
     if (idx !== -1) {
       columnMap.set(col.key, idx);
     }
@@ -499,7 +577,7 @@ export function parseExcelFile(
 
   const rows: ParsedRow[] = [];
 
-  for (let i = 1; i < rawData.length; i++) {
+  for (let i = headerRowIndex + 1; i < rawData.length; i++) {
     const raw = rawData[i];
     // Skip completely empty rows
     if (!raw || raw.every((cell) => cell == null || String(cell).trim() === "")) {

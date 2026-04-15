@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { type ImportType, IMPORT_CONFIGS } from "@/lib/excel-import";
+import type { KopParseResult } from "@/lib/kop-import";
+import { estimateItemMatch, type MatchConfidence } from "@/lib/kop-matcher";
 import { generateTransactionNumber } from "@/lib/transaction-number";
 
 type RowData = Record<string, string | number | null>;
 
 interface ImportRequest {
   importType: ImportType;
-  rows: Array<{ rowIndex: number; data: RowData }>;
+  rows?: Array<{ rowIndex: number; data: RowData }>;
+  defaultBaseUomCode?: string;
+  kop?: KopParseResult;
 }
 
 interface RowResult {
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body: ImportRequest = await request.json();
-  const { importType, rows } = body;
+  const { importType, rows, defaultBaseUomCode, kop } = body;
 
   if (!importType || !IMPORT_CONFIGS[importType]) {
     return NextResponse.json(
@@ -33,7 +37,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!rows || rows.length === 0) {
+  if (importType === "kop-production-order") {
+    if (!kop) {
+      return NextResponse.json({ error: "Missing KOP payload" }, { status: 400 });
+    }
+  } else if (!rows || rows.length === 0) {
     return NextResponse.json({ error: "No data to import" }, { status: 400 });
   }
 
@@ -42,23 +50,34 @@ export async function POST(request: NextRequest) {
 
     switch (importType) {
       case "items":
-        results = await importItems(rows);
+        results = await importItems(rows!);
+        break;
+      case "items-simple":
+        if (!defaultBaseUomCode) {
+          return NextResponse.json(
+            { error: "defaultBaseUomCode is required for items-simple import" },
+            { status: 400 }
+          );
+        }
+        results = await importItemsSimple(rows!, defaultBaseUomCode);
         break;
       case "warehouses":
-        results = await importWarehouses(rows);
+        results = await importWarehouses(rows!);
         break;
       case "uom-conversions":
-        results = await importUomConversions(rows);
+        results = await importUomConversions(rows!);
         break;
       case "inventory":
-        results = await importInventory(rows, session.user.id);
+        results = await importInventory(rows!, session.user.id);
         break;
       case "bom":
-        results = await importBom(rows, session.user.id);
+        results = await importBom(rows!, session.user.id);
         break;
       case "production-orders":
-        results = await importProductionOrders(rows, session.user.id);
+        results = await importProductionOrders(rows!, session.user.id);
         break;
+      case "kop-production-order":
+        return await importKopOrder(kop!, session.user.id);
       default:
         return NextResponse.json(
           { error: "Unsupported import type" },
@@ -780,4 +799,308 @@ async function importProductionOrders(
   }
 
   return results;
+}
+
+// ============================================================
+// ITEMS (SIMPLE / LEGACY 3-COLUMN) IMPORT
+// ============================================================
+
+async function importItemsSimple(
+  rows: Array<{ rowIndex: number; data: RowData }>,
+  defaultBaseUomCode: string
+): Promise<RowResult[]> {
+  const results: RowResult[] = [];
+
+  const uom = await prisma.uom.findUnique({
+    where: { code: defaultBaseUomCode },
+  });
+  if (!uom) {
+    for (const row of rows) {
+      results.push({
+        rowIndex: row.rowIndex,
+        success: false,
+        error: `Default Base UOM "${defaultBaseUomCode}" not found.`,
+      });
+    }
+    return results;
+  }
+
+  const categories = await prisma.itemCategory.findMany();
+  const categoryByCode = new Map(
+    categories.map((c) => [c.code.toUpperCase(), c])
+  );
+
+  const existingItems = await prisma.item.findMany({ select: { code: true } });
+  const existingCodes = new Set(existingItems.map((i) => i.code.toUpperCase()));
+
+  for (const row of rows) {
+    const { data } = row;
+    const code = String(data.code ?? "").trim();
+    const name = String(data.name ?? "").trim();
+    const rawCategory = String(data.category ?? "").trim();
+
+    if (!code || !name || !rawCategory) {
+      results.push({ rowIndex: row.rowIndex, success: false, error: "Missing required fields." });
+      continue;
+    }
+
+    if (existingCodes.has(code.toUpperCase())) {
+      results.push({ rowIndex: row.rowIndex, success: false, error: `Item code "${code}" already exists.` });
+      continue;
+    }
+
+    const categoryCode = rawCategory.toUpperCase().replace(/\s+/g, "_");
+    let category = categoryByCode.get(categoryCode);
+    if (!category) {
+      category = await prisma.itemCategory.create({
+        data: { code: categoryCode, name: rawCategory },
+      });
+      categoryByCode.set(categoryCode, category);
+    }
+
+    try {
+      await prisma.item.create({
+        data: {
+          code,
+          name,
+          categoryId: category.id,
+          baseUomId: uom.id,
+        },
+      });
+      existingCodes.add(code.toUpperCase());
+      results.push({ rowIndex: row.rowIndex, success: true });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      results.push({ rowIndex: row.rowIndex, success: false, error: msg });
+    }
+  }
+
+  return results;
+}
+
+// ============================================================
+// KOP PRODUCTION ORDER IMPORT (one workbook = one production order)
+// ============================================================
+
+async function importKopOrder(kop: KopParseResult, userId: string) {
+  if (kop.errors.length > 0) {
+    return NextResponse.json(
+      { error: `KOP parse errors: ${kop.errors.join("; ")}` },
+      { status: 400 }
+    );
+  }
+  if (!kop.header.orderNumber) {
+    return NextResponse.json({ error: "KOP is missing No. WO (order number)." }, { status: 400 });
+  }
+
+  const sessionUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!sessionUser) {
+    return NextResponse.json(
+      {
+        error:
+          "Your session references a user that no longer exists (likely after a demo reset). Sign out and sign back in, then retry.",
+      },
+      { status: 401 }
+    );
+  }
+  if (kop.outputs.length === 0) {
+    return NextResponse.json({ error: "KOP has no outputs." }, { status: 400 });
+  }
+
+  const existing = await prisma.productionOrder.findUnique({
+    where: { orderNumber: kop.header.orderNumber },
+    select: { id: true },
+  });
+  if (existing) {
+    return NextResponse.json(
+      { error: `Production order "${kop.header.orderNumber}" already exists.` },
+      { status: 409 }
+    );
+  }
+
+  // Auto-upsert any missing UOMs the KOP references. Codes are small and
+  // case-insensitive; default the display name to the code itself.
+  const neededUomCodes = new Set<string>(["pcs"]);
+  for (const m of kop.materials) neededUomCodes.add(m.uomCode.toLowerCase());
+
+  const existingUoms = await prisma.uom.findMany({
+    where: { code: { in: Array.from(neededUomCodes) } },
+    select: { id: true, code: true },
+  });
+  const uomByCode = new Map(existingUoms.map((u) => [u.code.toLowerCase(), u]));
+  for (const code of neededUomCodes) {
+    if (!uomByCode.has(code)) {
+      const created = await prisma.uom.create({
+        data: { code, name: code.toUpperCase() },
+      });
+      uomByCode.set(code, created);
+    }
+  }
+  const pcs = uomByCode.get("pcs")!;
+
+  // Ensure UNMATCHED category exists for placeholder items.
+  const unmatchedCategory = await prisma.itemCategory.upsert({
+    where: { code: "UNMATCHED" },
+    update: {},
+    create: { code: "UNMATCHED", name: "Unmatched (Pending Review)" },
+  });
+
+  // Fuzzy-match KOP codes to existing items.
+  const allItems = await prisma.item.findMany({
+    select: { id: true, code: true, name: true },
+  });
+
+  type LineResolution = {
+    kopCode: string;
+    section: "output" | "material" | "accessory";
+    itemId: string;
+    matchedItemCode: string;
+    confidence: MatchConfidence;
+    created: boolean;
+  };
+  const resolutions: LineResolution[] = [];
+
+  async function resolve(
+    kopCode: string,
+    section: "output" | "material" | "accessory"
+  ): Promise<LineResolution> {
+    const match = estimateItemMatch(kopCode, allItems);
+    if (match.item) {
+      return {
+        kopCode,
+        section,
+        itemId: match.item.id,
+        matchedItemCode: match.item.code,
+        confidence: match.confidence,
+        created: false,
+      };
+    }
+    // No match: upsert a placeholder item using the KOP code as item.code so
+    // the operator can identify and merge/rename it later.
+    const placeholder = await prisma.item.upsert({
+      where: { code: kopCode },
+      update: {},
+      create: {
+        code: kopCode,
+        name: `[KOP] ${kopCode}`,
+        categoryId: unmatchedCategory.id,
+        baseUomId: pcs.id,
+      },
+    });
+    allItems.push({ id: placeholder.id, code: placeholder.code, name: placeholder.name });
+    return {
+      kopCode,
+      section,
+      itemId: placeholder.id,
+      matchedItemCode: placeholder.code,
+      confidence: "none",
+      created: true,
+    };
+  }
+
+  const outputResolutions: LineResolution[] = [];
+  for (const o of kop.outputs) {
+    const r = await resolve(o.itemCode, "output");
+    outputResolutions.push(r);
+    resolutions.push(r);
+  }
+  const materialResolutions: LineResolution[] = [];
+  for (const m of kop.materials) {
+    const section = m.section === "material" ? "material" : "accessory";
+    const r = await resolve(m.itemCode, section);
+    materialResolutions.push(r);
+    resolutions.push(r);
+  }
+
+  const matchedCount = resolutions.filter((r) => !r.created).length;
+  const placeholderCount = resolutions.filter((r) => r.created).length;
+  const notes =
+    `Imported from KOP ${kop.header.orderNumber}. ` +
+    `${matchedCount} matched, ${placeholderCount} auto-created. ` +
+    `Review each line before starting production.`;
+
+  function lineNote(
+    r: LineResolution,
+    extra: string | null = null
+  ): string {
+    const tag = r.created
+      ? `KOP ${r.kopCode} · auto-created placeholder`
+      : `KOP ${r.kopCode} · matched [${r.confidence}] → ${r.matchedItemCode}`;
+    return extra ? `${tag} · ${extra}` : tag;
+  }
+
+  try {
+    const created = await prisma.productionOrder.create({
+      data: {
+        orderNumber: kop.header.orderNumber,
+        description: kop.header.description,
+        type: "FINISHED_GOOD",
+        status: "DRAFT",
+        plannedStartDate: kop.header.plannedStartDate
+          ? new Date(kop.header.plannedStartDate)
+          : null,
+        jenisWarna: kop.header.jenisWarna,
+        typeVariant: kop.header.typeVariant,
+        tangga: kop.header.tangga,
+        departmentName: kop.header.departmentName,
+        notes,
+        createdById: userId,
+        outputs: {
+          create: kop.outputs.map((o, i) => {
+            const extras = [o.warna, o.keterangan].filter(Boolean).join(" · ");
+            return {
+              itemId: outputResolutions[i].itemId,
+              uomId: pcs.id,
+              targetQuantity: o.quantity,
+              producedQuantity: 0,
+              notes: lineNote(outputResolutions[i], extras || null),
+            };
+          }),
+        },
+        materials: {
+          create: kop.materials.map((m, i) => {
+            const extras = [
+              m.panjang != null ? `PANJANG ${m.panjang}` : null,
+              m.keterangan,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return {
+              itemId: materialResolutions[i].itemId,
+              uomId: uomByCode.get(m.uomCode.toLowerCase())!.id,
+              requiredQuantity: m.quantity,
+              consumedQuantity: 0,
+              notes: lineNote(materialResolutions[i], extras || null),
+            };
+          }),
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      summary: {
+        total: resolutions.length,
+        imported: resolutions.length,
+        errors: 0,
+        matched: matchedCount,
+        placeholders: placeholderCount,
+      },
+      results: resolutions.map((r) => ({
+        kopCode: r.kopCode,
+        section: r.section,
+        matchedItemCode: r.matchedItemCode,
+        confidence: r.confidence,
+        created: r.created,
+      })),
+      productionOrderId: created.id,
+      productionOrderNumber: created.orderNumber,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

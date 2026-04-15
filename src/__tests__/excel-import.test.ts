@@ -670,3 +670,38 @@ describe("round-trip: generate template then parse it", () => {
     }
   );
 });
+
+// ============================================================
+// ITEMS-SIMPLE (LEGACY INDONESIAN FORMAT)
+// ============================================================
+
+describe("parseExcelFile — items-simple (legacy format)", () => {
+  it("detects the header row below title rows and maps Indonesian aliases", () => {
+    const rows: (string | number | null)[][] = [
+      ["PT. SUTANDI JAYA SEJAHTERA", null, null],
+      ["Kuantitas Barang per Daftar Gudang", null, null],
+      ["Filter berdasarkan :Nama Kategori Barang", null, null],
+      [null, null, null],
+      ["No. Barang", "Deskripsi Barang", "Nama Kategori Barang"],
+      ["1-1-000-01-151-57-0060", "YKK API 9k 86903 TK10 6000", "ALUMINIUM"],
+      ["1-1-010-01-001-57-0060", "YF YKK API K 94389 TK10 6000", "ALUMINIUM"],
+    ];
+
+    const result = parseRows("items-simple", rows);
+    expect(result.totalRows).toBe(2);
+    expect(result.validRows).toBe(2);
+    expect(result.rows[0].data.code).toBe("1-1-000-01-151-57-0060");
+    expect(result.rows[0].data.name).toBe("YKK API 9k 86903 TK10 6000");
+    expect(result.rows[0].data.category).toBe("ALUMINIUM");
+  });
+
+  it("flags missing required values", () => {
+    const rows: (string | number | null)[][] = [
+      ["No. Barang", "Deskripsi Barang", "Nama Kategori Barang"],
+      ["CODE-1", "", "ALUMINIUM"],
+    ];
+    const result = parseRows("items-simple", rows);
+    expect(result.errorRows).toBe(1);
+    expect(result.rows[0].errors.some((e) => e.includes("Name"))).toBe(true);
+  });
+});

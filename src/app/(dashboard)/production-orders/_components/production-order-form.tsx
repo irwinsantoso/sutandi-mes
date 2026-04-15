@@ -45,12 +45,14 @@ interface MaterialRow {
   itemId: string
   requiredQuantity: string
   uomId: string
+  notes: string
 }
 
 interface OutputRow {
   itemId: string
   targetQuantity: string
   uomId: string
+  notes: string
 }
 
 interface ExistingOrder {
@@ -64,11 +66,13 @@ interface ExistingOrder {
     itemId: string
     requiredQuantity: number
     uomId: string
+    notes: string | null
   }[]
   outputs: {
     itemId: string
     targetQuantity: number
     uomId: string
+    notes: string | null
   }[]
 }
 
@@ -103,7 +107,8 @@ export function ProductionOrderForm({
       itemId: m.itemId,
       requiredQuantity: String(m.requiredQuantity),
       uomId: m.uomId,
-    })) ?? [{ itemId: "", requiredQuantity: "", uomId: "" }]
+      notes: m.notes ?? "",
+    })) ?? [{ itemId: "", requiredQuantity: "", uomId: "", notes: "" }]
   )
 
   const [outputs, setOutputs] = useState<OutputRow[]>(
@@ -111,13 +116,14 @@ export function ProductionOrderForm({
       itemId: o.itemId,
       targetQuantity: String(o.targetQuantity),
       uomId: o.uomId,
-    })) ?? [{ itemId: "", targetQuantity: "", uomId: "" }]
+      notes: o.notes ?? "",
+    })) ?? [{ itemId: "", targetQuantity: "", uomId: "", notes: "" }]
   )
 
   function addMaterial() {
     setMaterials((prev) => [
       ...prev,
-      { itemId: "", requiredQuantity: "", uomId: "" },
+      { itemId: "", requiredQuantity: "", uomId: "", notes: "" },
     ])
   }
 
@@ -146,7 +152,7 @@ export function ProductionOrderForm({
   function addOutput() {
     setOutputs((prev) => [
       ...prev,
-      { itemId: "", targetQuantity: "", uomId: "" },
+      { itemId: "", targetQuantity: "", uomId: "", notes: "" },
     ])
   }
 
@@ -179,12 +185,14 @@ export function ProductionOrderForm({
       itemId: m.itemId,
       requiredQuantity: parseFloat(m.requiredQuantity),
       uomId: m.uomId,
+      notes: m.notes.trim() || undefined,
     }))
 
     const parsedOutputs = outputs.map((o) => ({
       itemId: o.itemId,
       targetQuantity: parseFloat(o.targetQuantity),
       uomId: o.uomId,
+      notes: o.notes.trim() || undefined,
     }))
 
     const hasInvalidMaterials = parsedMaterials.some(
@@ -384,6 +392,17 @@ export function ProductionOrderForm({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
+              <div className="mt-2 space-y-1">
+                <Label className="text-xs text-muted-foreground">Notes</Label>
+                <Input
+                  placeholder="Line notes (optional)"
+                  value={material.notes}
+                  onChange={(e) =>
+                    updateMaterial(index, "notes", e.target.value)
+                  }
+                  disabled={isPending}
+                />
+              </div>
             </div>
           ))}
           <Button
@@ -482,6 +501,15 @@ export function ProductionOrderForm({
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
+              </div>
+              <div className="mt-2 space-y-1">
+                <Label className="text-xs text-muted-foreground">Notes</Label>
+                <Input
+                  placeholder="Line notes (optional)"
+                  value={output.notes}
+                  onChange={(e) => updateOutput(index, "notes", e.target.value)}
+                  disabled={isPending}
+                />
               </div>
             </div>
           ))}

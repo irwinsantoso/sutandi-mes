@@ -262,6 +262,10 @@ model ProductionOrder {
   actualStartDate  DateTime?             @map("actual_start_date")
   actualEndDate    DateTime?             @map("actual_end_date")
   notes            String?
+  jenisWarna       String?               @map("jenis_warna")
+  typeVariant      String?               @map("type_variant")
+  tangga           String?
+  departmentName   String?               @map("department_name")
   createdById      String                @map("created_by_id")
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
@@ -293,6 +297,7 @@ model ProductionOrderMaterial {
   requiredQuantity  Decimal  @map("required_quantity") @db.Decimal(18, 4)
   uomId             String   @map("uom_id")
   consumedQuantity  Decimal  @default(0) @map("consumed_quantity") @db.Decimal(18, 4)
+  notes             String?
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -312,6 +317,7 @@ model ProductionOrderOutput {
   targetQuantity    Decimal  @map("target_quantity") @db.Decimal(18, 4)
   uomId             String   @map("uom_id")
   producedQuantity  Decimal  @default(0) @map("produced_quantity") @db.Decimal(18, 4)
+  notes             String?
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

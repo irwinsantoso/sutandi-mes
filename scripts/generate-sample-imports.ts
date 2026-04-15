@@ -21,7 +21,7 @@ import { IMPORT_CONFIGS, type ImportType } from "../src/lib/excel-import";
 
 type Row = Record<string, string | number>;
 
-const SAMPLES: Record<ImportType, Row[]> = {
+const SAMPLES: Partial<Record<ImportType, Row[]>> = {
   warehouses: [
     { warehouseCode: "WH-02", warehouseName: "Secondary Warehouse", warehouseAddress: "Jl. Industri No. 42", locationCode: "WH-02-A1", locationName: "Rack A Row 1", zone: "A" },
     { warehouseCode: "WH-02", warehouseName: "Secondary Warehouse", warehouseAddress: "Jl. Industri No. 42", locationCode: "WH-02-A2", locationName: "Rack A Row 2", zone: "A" },
@@ -137,10 +137,12 @@ function main() {
   const order: ImportType[] = ["warehouses", "items", "uom-conversions", "inventory", "bom", "production-orders"];
   for (let i = 0; i < order.length; i++) {
     const type = order[i];
-    const wb = buildWorkbook(type, SAMPLES[type]);
+    const sampleRows = SAMPLES[type];
+    if (!sampleRows) continue;
+    const wb = buildWorkbook(type, sampleRows);
     const file = path.join(outDir, `${String(i + 1).padStart(2, "0")}-${type}.xlsx`);
     XLSX.writeFile(wb, file);
-    console.log(`Wrote ${file}  (${SAMPLES[type].length} rows)`);
+    console.log(`Wrote ${file}  (${sampleRows.length} rows)`);
   }
 }
 

@@ -129,6 +129,43 @@ export default async function ProductionOrderDetailPage({
         }))}
       />
 
+      {(order.jenisWarna ||
+        order.typeVariant ||
+        order.tangga ||
+        order.departmentName) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>KOP Details</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {order.jenisWarna && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Jenis/Warna</span>
+                <span className="font-medium">{order.jenisWarna}</span>
+              </div>
+            )}
+            {order.typeVariant && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Type</span>
+                <span className="font-medium">{order.typeVariant}</span>
+              </div>
+            )}
+            {order.tangga && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tangga</span>
+                <span className="font-medium">{order.tangga}</span>
+              </div>
+            )}
+            {order.departmentName && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Nama Departemen</span>
+                <span className="font-medium">{order.departmentName}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -249,12 +286,13 @@ export default async function ProductionOrderDetailPage({
                   <TableHead className="text-right">Consumed Qty</TableHead>
                   <TableHead>UOM</TableHead>
                   <TableHead className="text-right">Progress</TableHead>
+                  <TableHead>Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {order.materials.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-16 text-center">
+                    <TableCell colSpan={6} className="h-16 text-center">
                       No materials.
                     </TableCell>
                   </TableRow>
@@ -297,6 +335,9 @@ export default async function ProductionOrderDetailPage({
                             </span>
                           </div>
                         </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {material.notes ?? ""}
+                        </TableCell>
                       </TableRow>
                     )
                   })
@@ -321,12 +362,13 @@ export default async function ProductionOrderDetailPage({
                   <TableHead className="text-right">Produced Qty</TableHead>
                   <TableHead>UOM</TableHead>
                   <TableHead className="text-right">Progress</TableHead>
+                  <TableHead>Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {order.outputs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-16 text-center">
+                    <TableCell colSpan={6} className="h-16 text-center">
                       No outputs.
                     </TableCell>
                   </TableRow>
@@ -368,6 +410,9 @@ export default async function ProductionOrderDetailPage({
                               {progress}%
                             </span>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {output.notes ?? ""}
                         </TableCell>
                       </TableRow>
                     )
