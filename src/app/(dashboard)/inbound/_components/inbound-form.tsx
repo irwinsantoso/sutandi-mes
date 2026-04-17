@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Plus, Trash2 } from "lucide-react"
@@ -234,27 +235,16 @@ export function InboundForm({ items, locations }: InboundFormProps) {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Item</Label>
-                  <Select
+                  <SearchableSelect
                     value={li.itemId}
-                    onValueChange={(val) => updateLineItem(li.key, "itemId", val ?? "")}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select item">
-                        {(value: string | null) => {
-                          if (!value) return "Select item";
-                          const item = items.find((i) => i.id === value);
-                          return item ? `${item.code} - ${item.name}` : value;
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {items.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.code} - {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => updateLineItem(li.key, "itemId", val)}
+                    placeholder="Select item"
+                    options={items.map((item) => ({
+                      value: item.id,
+                      label: `${item.code} - ${item.name}`,
+                      searchText: `${item.code} ${item.name}`,
+                    }))}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -309,29 +299,16 @@ export function InboundForm({ items, locations }: InboundFormProps) {
 
                 <div className="space-y-2">
                   <Label>Location</Label>
-                  <Select
+                  <SearchableSelect
                     value={li.locationId}
-                    onValueChange={(val) =>
-                      updateLineItem(li.key, "locationId", val ?? "")
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select location">
-                        {(value: string | null) => {
-                          if (!value) return "Select location";
-                          const loc = locations.find((l) => l.id === value);
-                          return loc ? `${loc.warehouse.code} / ${loc.code} - ${loc.name}` : value;
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations.map((loc) => (
-                        <SelectItem key={loc.id} value={loc.id}>
-                          {loc.warehouse.code} / {loc.code} - {loc.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => updateLineItem(li.key, "locationId", val)}
+                    placeholder="Select location"
+                    options={locations.map((loc) => ({
+                      value: loc.id,
+                      label: `${loc.warehouse.code} / ${loc.code} - ${loc.name}`,
+                      searchText: `${loc.warehouse.code} ${loc.warehouse.name} ${loc.code} ${loc.name}`,
+                    }))}
+                  />
                 </div>
 
                 <div className="flex items-end">
