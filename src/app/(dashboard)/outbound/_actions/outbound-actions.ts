@@ -121,7 +121,7 @@ export async function confirmOutboundTransaction(id: string) {
       include: {
         items: {
           include: {
-            item: { select: { baseUomId: true } },
+            item: { select: { baseUomId: true, name: true, code: true } },
             uom: { select: { code: true } },
           },
         },
@@ -138,6 +138,31 @@ export async function confirmOutboundTransaction(id: string) {
         success: false as const,
         error: "Only DRAFT transactions can be confirmed.",
       }
+    }
+
+    // Check available stock for every line before touching inventory
+    const stockErrors: string[] = []
+    for (const item of transaction.items) {
+      const inv = await prisma.inventory.findUnique({
+        where: {
+          itemId_locationId_batchLot_uomId: {
+            itemId: item.itemId,
+            locationId: item.locationId,
+            batchLot: item.batchLot || "",
+            uomId: item.item.baseUomId,
+          },
+        },
+      })
+      const available = new Decimal(inv?.quantity ?? 0).minus(inv?.reservedQuantity ?? 0)
+      if (available.lessThan(item.quantityInBaseUom)) {
+        stockErrors.push(
+          `Insufficient stock for ${item.item.code} – ${item.item.name}: ` +
+            `required ${item.quantityInBaseUom}, available ${available.toFixed()}`
+        )
+      }
+    }
+    if (stockErrors.length > 0) {
+      return { success: false as const, error: stockErrors.join("; ") }
     }
 
     await prisma.$transaction(async (tx) => {
