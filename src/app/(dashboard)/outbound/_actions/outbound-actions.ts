@@ -6,7 +6,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { generateTransactionNumber } from "@/lib/transaction-number"
-import { toBaseUom } from "@/lib/uom-converter"
+import { toBaseUom, convertQuantity } from "@/lib/uom-converter"
 import { Decimal } from "@prisma/client/runtime/library"
 
 const outboundItemSchema = z.object({
@@ -143,17 +143,56 @@ export async function confirmOutboundTransaction(id: string) {
     // Check available stock for every line before touching inventory
     const stockErrors: string[] = []
     for (const item of transaction.items) {
-      const inv = await prisma.inventory.findUnique({
+      // Find all inventory for this item at this location.
+      // Do NOT filter by uomId — inventory may be stored in any UOM (e.g. bundle
+      // vs base pcs). We convert each record to base UOM for the comparison.
+      // If the outbound item has a batchLot, restrict to that batch only.
+      const invRecords = await prisma.inventory.findMany({
         where: {
-          itemId_locationId_batchLot_uomId: {
-            itemId: item.itemId,
-            locationId: item.locationId,
-            batchLot: item.batchLot || "",
-            uomId: item.item.baseUomId,
-          },
+          itemId: item.itemId,
+          locationId: item.locationId,
+          ...(item.batchLot ? { batchLot: item.batchLot } : {}),
         },
       })
-      const available = new Decimal(inv?.quantity ?? 0).minus(inv?.reservedQuantity ?? 0)
+
+      // Convert each record's available qty to base UOM for a fair comparison.
+      let available = new Decimal(0)
+      for (const inv of invRecords) {
+        const qtyBase = await convertQuantity(
+          item.itemId, inv.uomId, item.item.baseUomId, new Decimal(inv.quantity)
+        )
+        const resBase = await convertQuantity(
+          item.itemId, inv.uomId, item.item.baseUomId, new Decimal(inv.reservedQuantity)
+        )
+        available = available.plus(qtyBase.minus(resBase))
+      }
+
+      // For PO-linked outbounds, the PO's own reservation is consumable — add
+      // it back so the check doesn't block reserved-stock consumption.
+      if (transaction.productionOrderId && invRecords.length > 0) {
+        const matchingMaterial = transaction.productionOrder?.materials.find(
+          (m) => m.itemId === item.itemId
+        )
+        if (matchingMaterial) {
+          for (const inv of invRecords) {
+            const reservation = await prisma.inventoryReservation.findUnique({
+              where: {
+                inventoryId_productionOrderMaterialId: {
+                  inventoryId: inv.id,
+                  productionOrderMaterialId: matchingMaterial.id,
+                },
+              },
+            })
+            if (reservation) {
+              const resBase = await convertQuantity(
+                item.itemId, inv.uomId, item.item.baseUomId, new Decimal(reservation.quantity)
+              )
+              available = available.plus(resBase)
+            }
+          }
+        }
+      }
+
       if (available.lessThan(item.quantityInBaseUom)) {
         stockErrors.push(
           `Insufficient stock for ${item.item.code} – ${item.item.name}: ` +
@@ -167,29 +206,35 @@ export async function confirmOutboundTransaction(id: string) {
 
     await prisma.$transaction(async (tx) => {
       for (const item of transaction.items) {
-        // Decrement inventory
-        await tx.inventory.upsert({
+        // Find matching inventory records (same logic as stock check above).
+        const invRecords = await tx.inventory.findMany({
           where: {
-            itemId_locationId_batchLot_uomId: {
-              itemId: item.itemId,
-              locationId: item.locationId,
-              batchLot: item.batchLot || "",
-              uomId: item.item.baseUomId,
-            },
-          },
-          create: {
             itemId: item.itemId,
             locationId: item.locationId,
-            batchLot: item.batchLot || "",
-            uomId: item.item.baseUomId,
-            quantity: new Decimal(0).minus(item.quantityInBaseUom),
+            ...(item.batchLot ? { batchLot: item.batchLot } : {}),
           },
-          update: {
-            quantity: {
-              decrement: item.quantityInBaseUom,
-            },
-          },
+          orderBy: { updatedAt: "asc" },
         })
+
+        // FIFO decrement. remaining is tracked in base UOM.
+        // Each record may be stored in a different UOM, so we convert before
+        // decrementing and convert the decrement amount back to the record's UOM.
+        let remaining = new Decimal(item.quantityInBaseUom)
+        for (const inv of invRecords) {
+          if (remaining.lessThanOrEqualTo(0)) break
+          const invQtyBase = await convertQuantity(
+            item.itemId, inv.uomId, item.item.baseUomId, new Decimal(inv.quantity)
+          )
+          const decrementBase = Decimal.min(remaining, invQtyBase)
+          const decrementNative = await convertQuantity(
+            item.itemId, item.item.baseUomId, inv.uomId, decrementBase
+          )
+          await tx.inventory.update({
+            where: { id: inv.id },
+            data: { quantity: { decrement: decrementNative } },
+          })
+          remaining = remaining.minus(decrementBase)
+        }
 
         // Create stock movement (negative quantity for outbound)
         await tx.stockMovement.create({
@@ -206,7 +251,10 @@ export async function confirmOutboundTransaction(id: string) {
           },
         })
 
-        // If linked to production order, update consumed quantity and release reservation
+        // If linked to production order, track consumed quantity.
+        // Reservations are kept intact until the PO is completed or cancelled
+        // so that inventory.reservedQuantity stays elevated and
+        // available (= quantity - reserved) decreases as material is consumed.
         if (transaction.productionOrder) {
           const matchingMaterial = transaction.productionOrder.materials.find(
             (m) => m.itemId === item.itemId
@@ -220,51 +268,6 @@ export async function confirmOutboundTransaction(id: string) {
                 },
               },
             })
-
-            // Release the reservation owned by this production order for
-            // the consumed amount. Prefer the reservation row tied to this
-            // specific PO material so we don't release stock held by other POs.
-            const inventoryRecord = await tx.inventory.findUnique({
-              where: {
-                itemId_locationId_batchLot_uomId: {
-                  itemId: item.itemId,
-                  locationId: item.locationId,
-                  batchLot: item.batchLot || "",
-                  uomId: item.item.baseUomId,
-                },
-              },
-            })
-            if (inventoryRecord) {
-              const reservation = await tx.inventoryReservation.findUnique({
-                where: {
-                  inventoryId_productionOrderMaterialId: {
-                    inventoryId: inventoryRecord.id,
-                    productionOrderMaterialId: matchingMaterial.id,
-                  },
-                },
-              })
-              const releaseAmount = Math.min(
-                Number(reservation?.quantity ?? inventoryRecord.reservedQuantity),
-                Number(item.quantityInBaseUom)
-              )
-              if (releaseAmount > 0) {
-                await tx.inventory.update({
-                  where: { id: inventoryRecord.id },
-                  data: { reservedQuantity: { decrement: releaseAmount } },
-                })
-                if (reservation) {
-                  const remaining = Number(reservation.quantity) - releaseAmount
-                  if (remaining <= 0) {
-                    await tx.inventoryReservation.delete({ where: { id: reservation.id } })
-                  } else {
-                    await tx.inventoryReservation.update({
-                      where: { id: reservation.id },
-                      data: { quantity: remaining },
-                    })
-                  }
-                }
-              }
-            }
           }
         }
       }
@@ -279,6 +282,7 @@ export async function confirmOutboundTransaction(id: string) {
     revalidatePath("/outbound")
     revalidatePath(`/outbound/${id}`)
     revalidatePath("/inventory")
+    revalidatePath("/inventory/summary")
     revalidatePath("/production-orders")
     return { success: true as const }
   } catch (error) {
