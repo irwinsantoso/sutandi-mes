@@ -284,6 +284,8 @@ export async function startProductionOrder(id: string) {
     })
 
     revalidatePath(`/production-orders/${id}`)
+    revalidatePath("/inventory")
+    revalidatePath("/inventory/summary")
     return { success: true as const }
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("Insufficient stock")) {
@@ -345,6 +347,8 @@ export async function completeProductionOrder(id: string) {
     })
 
     revalidatePath(`/production-orders/${id}`)
+    revalidatePath("/inventory")
+    revalidatePath("/inventory/summary")
     return { success: true as const }
   } catch {
     return { success: false as const, error: "Failed to complete production order." }
@@ -402,6 +406,8 @@ export async function cancelProductionOrder(id: string) {
     })
 
     revalidatePath(`/production-orders/${id}`)
+    revalidatePath("/inventory")
+    revalidatePath("/inventory/summary")
     return { success: true as const }
   } catch {
     return { success: false as const, error: "Failed to cancel production order." }

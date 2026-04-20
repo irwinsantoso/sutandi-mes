@@ -44,7 +44,7 @@ export function SearchableSelect({
 
   return (
     <Select
-      value={value || undefined}
+      value={value}
       onValueChange={(v) => {
         if (v) onValueChange(v)
         setSearch("")
