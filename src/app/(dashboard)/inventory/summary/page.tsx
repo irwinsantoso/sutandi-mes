@@ -140,18 +140,24 @@ export default async function StockSummaryPage() {
     }
   }
 
-  const data = Array.from(itemAggregation.values()).map((agg) => ({
-    itemId: agg.itemId,
-    itemCode: agg.itemCode,
-    itemName: agg.itemName,
-    itemCategory: agg.itemCategory,
-    uomCode: agg.uomCode,
-    totalOnHand: agg.totalOnHand,
-    totalReserved: agg.totalReserved,
-    totalAvailable: agg.totalOnHand - agg.totalReserved,
-    locations: agg.locations,
-    workOrders: woBookingsByItem.get(agg.itemId) || [],
-  }));
+  const data = Array.from(itemAggregation.values()).map((agg) => {
+    const workOrders = woBookingsByItem.get(agg.itemId) || [];
+    // Reserved = total remaining (required - consumed) across all active WOs.
+    // Using WO remaining is authoritative regardless of DB reservation state.
+    const totalReserved = workOrders.reduce((sum, wo) => sum + wo.remainingQuantity, 0);
+    return {
+      itemId: agg.itemId,
+      itemCode: agg.itemCode,
+      itemName: agg.itemName,
+      itemCategory: agg.itemCategory,
+      uomCode: agg.uomCode,
+      totalOnHand: agg.totalOnHand,
+      totalReserved,
+      totalAvailable: agg.totalOnHand - totalReserved,
+      locations: agg.locations,
+      workOrders,
+    };
+  });
 
   return (
     <div className="space-y-6">
