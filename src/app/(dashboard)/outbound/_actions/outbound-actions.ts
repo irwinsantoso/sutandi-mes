@@ -97,6 +97,7 @@ export async function createOutboundTransaction(data: {
     })
 
     revalidatePath("/outbound")
+    revalidatePath("/inventory/summary")
     redirect(`/outbound/${result.id}`)
   } catch (error) {
     if (error instanceof Error && error.message === "NEXT_REDIRECT") {
@@ -216,6 +217,11 @@ export async function confirmOutboundTransaction(id: string) {
           orderBy: { updatedAt: "asc" },
         })
 
+        // Pre-resolve matching PO material once for use in the FIFO loop.
+        const matchingMaterial = transaction.productionOrderId
+          ? transaction.productionOrder?.materials.find((m) => m.itemId === item.itemId)
+          : undefined
+
         // FIFO decrement. remaining is tracked in base UOM.
         // Each record may be stored in a different UOM, so we convert before
         // decrementing and convert the decrement amount back to the record's UOM.
@@ -229,9 +235,41 @@ export async function confirmOutboundTransaction(id: string) {
           const decrementNative = await convertQuantity(
             item.itemId, item.item.baseUomId, inv.uomId, decrementBase
           )
+
+          // If PO-linked, also release the portion of the reservation consumed by this decrement.
+          let reservedDecrement = new Decimal(0)
+          if (matchingMaterial) {
+            const reservation = await tx.inventoryReservation.findUnique({
+              where: {
+                inventoryId_productionOrderMaterialId: {
+                  inventoryId: inv.id,
+                  productionOrderMaterialId: matchingMaterial.id,
+                },
+              },
+            })
+            if (reservation) {
+              const existingReserved = new Decimal(reservation.quantity)
+              if (decrementNative.greaterThanOrEqualTo(existingReserved)) {
+                await tx.inventoryReservation.delete({ where: { id: reservation.id } })
+                reservedDecrement = existingReserved
+              } else {
+                await tx.inventoryReservation.update({
+                  where: { id: reservation.id },
+                  data: { quantity: { decrement: decrementNative } },
+                })
+                reservedDecrement = decrementNative
+              }
+            }
+          }
+
           await tx.inventory.update({
             where: { id: inv.id },
-            data: { quantity: { decrement: decrementNative } },
+            data: {
+              quantity: { decrement: decrementNative },
+              ...(reservedDecrement.greaterThan(0) && {
+                reservedQuantity: { decrement: reservedDecrement },
+              }),
+            },
           })
           remaining = remaining.minus(decrementBase)
         }
@@ -252,23 +290,11 @@ export async function confirmOutboundTransaction(id: string) {
         })
 
         // If linked to production order, track consumed quantity.
-        // Reservations are kept intact until the PO is completed or cancelled
-        // so that inventory.reservedQuantity stays elevated and
-        // available (= quantity - reserved) decreases as material is consumed.
-        if (transaction.productionOrder) {
-          const matchingMaterial = transaction.productionOrder.materials.find(
-            (m) => m.itemId === item.itemId
-          )
-          if (matchingMaterial) {
-            await tx.productionOrderMaterial.update({
-              where: { id: matchingMaterial.id },
-              data: {
-                consumedQuantity: {
-                  increment: item.quantityInBaseUom,
-                },
-              },
-            })
-          }
+        if (matchingMaterial) {
+          await tx.productionOrderMaterial.update({
+            where: { id: matchingMaterial.id },
+            data: { consumedQuantity: { increment: item.quantityInBaseUom } },
+          })
         }
       }
 
@@ -319,6 +345,7 @@ export async function cancelOutboundTransaction(id: string) {
 
     revalidatePath("/outbound")
     revalidatePath(`/outbound/${id}`)
+    revalidatePath("/inventory/summary")
     return { success: true as const }
   } catch (error) {
     return {
