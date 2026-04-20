@@ -24,6 +24,7 @@ model User {
   inboundTransactions  InboundTransaction[]
   outboundTransactions OutboundTransaction[]
   productionOrders     ProductionOrder[]
+  materialRequests     MaterialRequest[]
 
   @@map("users")
 }
@@ -401,4 +402,43 @@ enum MovementType {
   ADJUSTMENT
   TRANSFER
   PRODUCTION
+}
+
+// ============================================================
+// MATERIAL REQUESTS (SKM)
+// ============================================================
+
+model MaterialRequest {
+  id            String            @id @default(cuid())
+  requestNumber String            @unique @map("request_number")
+  requestDate   DateTime          @map("request_date")
+  notes         String?
+  status        TransactionStatus @default(DRAFT)
+  createdById   String            @map("created_by_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  createdBy User                  @relation(fields: [createdById], references: [id])
+  items     MaterialRequestItem[]
+
+  @@map("material_requests")
+}
+
+model MaterialRequestItem {
+  id                String   @id @default(cuid())
+  materialRequestId String   @map("material_request_id")
+  lineNumber        Int      @map("line_number")
+  itemCode          String   @map("item_code")
+  itemName          String   @map("item_name")
+  qtyRequired       Decimal  @map("qty_required") @db.Decimal(18, 4)
+  qtyBuy            Decimal? @map("qty_buy") @db.Decimal(18, 4)
+  qtyStock          Decimal? @map("qty_stock") @db.Decimal(18, 4)
+  uom               String
+  departmentName    String?  @map("department_name")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  materialRequest MaterialRequest @relation(fields: [materialRequestId], references: [id], onDelete: Cascade)
+
+  @@map("material_request_items")
 }
