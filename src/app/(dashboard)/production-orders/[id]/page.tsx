@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
-import { Pencil } from "lucide-react"
+import { Pencil, PackageMinus } from "lucide-react"
 import { ProductionOrderDetailClient } from "./_components/production-order-detail-client"
 
 const statusVariantMap: Record<
@@ -59,7 +59,7 @@ export default async function ProductionOrderDetailPage({
       materials: {
         include: {
           item: { select: { code: true, name: true } },
-          uom: { select: { code: true, name: true } },
+          uom: { select: { id: true, code: true, name: true } },
         },
       },
       outputs: {
@@ -273,8 +273,16 @@ export default async function ProductionOrderDetailPage({
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Materials (Input)</CardTitle>
+          {(order.status === "DRAFT" || order.status === "IN_PROGRESS") && (
+            <Link href={`/outbound/new?poId=${order.id}`}>
+              <Button variant="outline" size="sm">
+                <PackageMinus className="mr-2 h-4 w-4" />
+                Create Material Issue
+              </Button>
+            </Link>
+          )}
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">

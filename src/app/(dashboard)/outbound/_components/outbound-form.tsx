@@ -66,6 +66,7 @@ interface OutboundFormProps {
   productionOrders: ProductionOrderOption[]
   items: ItemOption[]
   locations: LocationOption[]
+  defaultProductionOrderId?: string
 }
 
 interface LineItem {
@@ -109,13 +110,36 @@ function getAvailableUoms(item: ItemOption | undefined): Array<{ id: string; cod
   return Array.from(uoms.values())
 }
 
-export function OutboundForm({ productionOrders, items, locations }: OutboundFormProps) {
+export function OutboundForm({ productionOrders, items, locations, defaultProductionOrderId }: OutboundFormProps) {
+  const defaultPO = defaultProductionOrderId
+    ? productionOrders.find((po) => po.id === defaultProductionOrderId)
+    : undefined
+
   const [isPending, startTransition] = useTransition()
-  const [productionOrderId, setProductionOrderId] = useState("")
-  const [purpose, setPurpose] = useState("")
+  const [productionOrderId, setProductionOrderId] = useState(defaultPO?.id ?? "")
+  const [purpose, setPurpose] = useState(defaultPO ? "PRODUCTION" : "")
   const [issueDate, setIssueDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [notes, setNotes] = useState("")
-  const [lineItems, setLineItems] = useState<LineItem[]>([createEmptyLineItem()])
+  const [lineItems, setLineItems] = useState<LineItem[]>(() => {
+    if (!defaultPO || defaultPO.materials.length === 0) return [createEmptyLineItem()]
+    return defaultPO.materials.map((mat) => {
+      const item = items.find((i) => i.id === mat.itemId)
+      const remaining = Math.max(0, mat.requiredQuantity - mat.consumedQuantity)
+      return {
+        key: crypto.randomUUID(),
+        itemId: mat.itemId,
+        quantity: remaining > 0 ? String(remaining) : "",
+        uomId: item?.baseUomId ?? "",
+        batchLot: "",
+        locationId: "",
+        scannedQrData: "",
+        notes: "",
+        showQrInput: false,
+        qrText: "",
+        qrOriginalQty: null,
+      }
+    })
+  })
 
   const selectedPO = productionOrders.find((po) => po.id === productionOrderId)
 
