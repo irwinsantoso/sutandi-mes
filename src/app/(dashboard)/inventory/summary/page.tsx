@@ -84,6 +84,55 @@ export default async function StockSummaryPage() {
     }
   }
 
+  // Fetch DRAFT outbound transactions linked to production orders
+  const draftOutboundTransactions = await prisma.outboundTransaction.findMany({
+    where: {
+      status: "DRAFT",
+      productionOrderId: { not: null },
+    },
+    select: {
+      transactionNumber: true,
+      productionOrder: { select: { orderNumber: true } },
+      items: {
+        select: {
+          itemId: true,
+          quantity: true,
+          uom: { select: { code: true } },
+          location: {
+            select: { code: true, warehouse: { select: { code: true } } },
+          },
+        },
+      },
+    },
+    orderBy: { transactionNumber: "asc" },
+  });
+
+  // Build a map: itemId → list of draft outbound entries
+  const draftOutboundsByItem = new Map<
+    string,
+    Array<{
+      transactionNumber: string;
+      productionOrderNumber: string;
+      quantity: number;
+      uomCode: string;
+      locationCode: string;
+    }>
+  >();
+
+  for (const tx of draftOutboundTransactions) {
+    for (const item of tx.items) {
+      const list = draftOutboundsByItem.get(item.itemId) || [];
+      list.push({
+        transactionNumber: tx.transactionNumber,
+        productionOrderNumber: tx.productionOrder!.orderNumber,
+        quantity: Number(item.quantity),
+        uomCode: item.uom.code,
+        locationCode: `${item.location.warehouse.code} / ${item.location.code}`,
+      });
+      draftOutboundsByItem.set(item.itemId, list);
+    }
+  }
+
   // Aggregate inventory by item (sum across all locations/batches)
   const itemAggregation = new Map<
     string,
@@ -142,8 +191,9 @@ export default async function StockSummaryPage() {
 
   const data = Array.from(itemAggregation.values()).map((agg) => {
     const workOrders = woBookingsByItem.get(agg.itemId) || [];
-    // Reserved = total remaining (required - consumed) across all active WOs.
-    // Using WO remaining is authoritative regardless of DB reservation state.
+    const draftOutbounds = draftOutboundsByItem.get(agg.itemId) || [];
+    // Reserved = total remaining commitment across active WOs (required − consumed).
+    // This is authoritative regardless of whether InventoryReservation records exist.
     const totalReserved = workOrders.reduce((sum, wo) => sum + wo.remainingQuantity, 0);
     return {
       itemId: agg.itemId,
@@ -156,6 +206,7 @@ export default async function StockSummaryPage() {
       totalAvailable: agg.totalOnHand - totalReserved,
       locations: agg.locations,
       workOrders,
+      draftOutbounds,
     };
   });
 

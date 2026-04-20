@@ -29,6 +29,7 @@ import {
   type StockSummaryRow,
 } from "./stock-summary-columns";
 import Link from "next/link";
+import { Package } from "lucide-react";
 
 interface StockSummaryClientProps {
   data: StockSummaryRow[];
@@ -181,6 +182,73 @@ export function StockSummaryClient({ data }: StockSummaryClientProps) {
                                           {formatQty(
                                             loc.quantity - loc.reservedQuantity
                                           )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Draft outbound transactions */}
+                          {row.original.draftOutbounds.length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
+                                <Package className="h-3.5 w-3.5 text-orange-500" />
+                                Pending Issues (Draft Outbound)
+                              </h4>
+                              <div className="rounded-md border">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b bg-muted/50">
+                                      <th className="px-3 py-1.5 text-left font-medium">
+                                        Outbound #
+                                      </th>
+                                      <th className="px-3 py-1.5 text-left font-medium">
+                                        Production Order
+                                      </th>
+                                      <th className="px-3 py-1.5 text-left font-medium">
+                                        Location
+                                      </th>
+                                      <th className="px-3 py-1.5 text-right font-medium">
+                                        Qty
+                                      </th>
+                                      <th className="px-3 py-1.5 text-left font-medium">
+                                        UOM
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {row.original.draftOutbounds.map((entry, idx) => (
+                                      <tr
+                                        key={idx}
+                                        className="border-b last:border-0"
+                                      >
+                                        <td className="px-3 py-1.5">
+                                          <Badge className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400 font-mono">
+                                            DRAFT
+                                          </Badge>{" "}
+                                          <span className="font-mono text-xs">
+                                            {entry.transactionNumber}
+                                          </span>
+                                        </td>
+                                        <td className="px-3 py-1.5">
+                                          <Link
+                                            href="/production-orders"
+                                            className="text-blue-600 hover:underline font-mono text-xs"
+                                          >
+                                            {entry.productionOrderNumber}
+                                          </Link>
+                                        </td>
+                                        <td className="px-3 py-1.5 text-muted-foreground text-xs">
+                                          {entry.locationCode}
+                                        </td>
+                                        <td className="px-3 py-1.5 text-right font-mono text-orange-600 dark:text-orange-400 font-medium">
+                                          {formatQty(entry.quantity)}
+                                        </td>
+                                        <td className="px-3 py-1.5">
+                                          {entry.uomCode}
                                         </td>
                                       </tr>
                                     ))}

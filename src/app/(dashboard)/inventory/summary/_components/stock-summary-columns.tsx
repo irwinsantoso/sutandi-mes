@@ -22,6 +22,14 @@ export type LocationDetail = {
   reservedQuantity: number;
 };
 
+export type DraftOutboundEntry = {
+  transactionNumber: string;
+  productionOrderNumber: string;
+  quantity: number;
+  uomCode: string;
+  locationCode: string;
+};
+
 export type StockSummaryRow = {
   itemId: string;
   itemCode: string;
@@ -33,6 +41,7 @@ export type StockSummaryRow = {
   totalAvailable: number;
   locations: LocationDetail[];
   workOrders: WorkOrderBooking[];
+  draftOutbounds: DraftOutboundEntry[];
 };
 
 const categoryColorMap: Record<string, string> = {
@@ -74,7 +83,9 @@ export const stockSummaryColumns: ColumnDef<StockSummaryRow>[] = [
     header: "",
     cell: ({ row }) => {
       const hasDetails =
-        row.original.locations.length > 1 || row.original.workOrders.length > 0;
+        row.original.locations.length > 1 ||
+        row.original.workOrders.length > 0 ||
+        row.original.draftOutbounds.length > 0;
       if (!hasDetails) return null;
       return (
         <Button
