@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
@@ -111,13 +111,43 @@ export async function deleteItem(
   id: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
+
     await prisma.item.delete({
       where: { id },
     });
 
     revalidatePath("/master/items");
     return { success: true };
-  } catch {
+  } catch (err) {
+    const usage = await prisma.inventory.count({
+      where: { itemId: id },
+    })
+
+    if (usage > 0) {
+      await prisma.$transaction(async (tx) => {
+        await tx.inventory.deleteMany({
+          where: { itemId: id },
+        })
+
+        await tx.stockMovement.deleteMany({
+          where: { itemId: id },
+        })
+
+        await tx.directWorkOrderMaterial.deleteMany({
+          where: { itemId: id },
+        })
+
+        await tx.item.delete({
+          where: { id },
+        })
+      })
+      // return {
+      //   success: false,
+      //   error: "Item already used in inventory. Cannot delete.",
+      // }
+
+      return {success: true}
+    }
     return { success: false, error: "Failed to delete item." };
   }
 }
