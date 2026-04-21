@@ -2,7 +2,7 @@ import { format } from "date-fns"
 import { prisma } from "./prisma"
 
 export async function generateTransactionNumber(
-  prefix: "IN" | "OUT" | "PO" | "SKM"
+  prefix: "IN" | "OUT" | "PO" | "SKM" | "SPL"
 ): Promise<string> {
   const today = format(new Date(), "yyyyMMdd")
 
@@ -24,6 +24,13 @@ export async function generateTransactionNumber(
     latest = result?.transactionNumber ?? null
   } else if (prefix === "PO") {
     const result = await prisma.productionOrder.findFirst({
+      where: { orderNumber: { startsWith: `${prefix}-${today}-` } },
+      orderBy: { orderNumber: "desc" },
+      select: { orderNumber: true },
+    })
+    latest = result?.orderNumber ?? null
+  } else if (prefix === "SPL") {
+    const result = await prisma.directWorkOrder.findFirst({
       where: { orderNumber: { startsWith: `${prefix}-${today}-` } },
       orderBy: { orderNumber: "desc" },
       select: { orderNumber: true },

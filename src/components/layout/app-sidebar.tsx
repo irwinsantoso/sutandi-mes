@@ -16,6 +16,7 @@ import {
   Warehouse,
   FileUp,
   ClipboardPen,
+  FileText,
 } from "lucide-react"
 import {
   Sidebar,
@@ -49,6 +50,7 @@ const navGroups = [
     items: [
       { title: "Production Orders", href: "/production-orders", icon: Factory },
       { title: "Material Requests (SKM)", href: "/skm", icon: ClipboardPen },
+      { title: "Direct Work Orders (SPL)", href: "/spl", icon: FileText },
     ],
   },
   {
