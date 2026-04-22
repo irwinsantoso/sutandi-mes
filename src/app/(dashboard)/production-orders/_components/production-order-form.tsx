@@ -329,6 +329,10 @@ export function ProductionOrderForm({
                       searchText: `${item.code} ${item.name}`,
                     }))}
                     disabled={isPending}
+                    renderValue={(val) => {
+                      const item = items.find((i) => i.id === val)
+                      return item ? `${item.code} - ${item.name}` : val
+                    }}
                   />
                 </div>
                 <div className="w-32 space-y-2">
@@ -427,6 +431,10 @@ export function ProductionOrderForm({
                       searchText: `${item.code} ${item.name}`,
                     }))}
                     disabled={isPending}
+                    renderValue={(val) => {
+                      const item = items.find((i) => i.id === val)
+                      return item ? `${item.code} - ${item.name}` : val
+                    }}
                   />
                 </div>
                 <div className="w-32 space-y-2">

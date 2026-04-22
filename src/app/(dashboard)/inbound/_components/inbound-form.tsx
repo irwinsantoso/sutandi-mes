@@ -244,6 +244,10 @@ export function InboundForm({ items, locations }: InboundFormProps) {
                       label: `${item.code} - ${item.name}`,
                       searchText: `${item.code} ${item.name}`,
                     }))}
+                    renderValue={(val) => {
+                      const item = items.find((i) => i.id === val)
+                      return item ? `${item.code} - ${item.name}` : val
+                    }}
                   />
                 </div>
 
@@ -308,6 +312,10 @@ export function InboundForm({ items, locations }: InboundFormProps) {
                       label: `${loc.warehouse.code} / ${loc.code} - ${loc.name}`,
                       searchText: `${loc.warehouse.code} ${loc.warehouse.name} ${loc.code} ${loc.name}`,
                     }))}
+                    renderValue={(val) => {
+                      const loc = locations.find((l) => l.id === val)
+                      return loc ? `${loc.warehouse.code} / ${loc.code} - ${loc.name}` : val
+                    }}
                   />
                 </div>
 

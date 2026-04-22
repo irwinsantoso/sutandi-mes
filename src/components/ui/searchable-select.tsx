@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select"
 import { Input } from "./input"
 import { cn } from "@/lib/utils"
@@ -19,6 +19,7 @@ interface SearchableSelectProps {
   className?: string
   disabled?: boolean
   searchPlaceholder?: string
+  renderValue?: (value: string) => React.ReactNode
 }
 
 export function SearchableSelect({
@@ -29,6 +30,7 @@ export function SearchableSelect({
   className,
   disabled,
   searchPlaceholder = "Search...",
+  renderValue,
 }: SearchableSelectProps) {
   const [search, setSearch] = useState("")
 
@@ -55,7 +57,9 @@ export function SearchableSelect({
       }}
     >
       <SelectTrigger className={cn("w-full", className)}>
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder}>
+          {renderValue ? (v: string | null) => (v ? renderValue(v) : placeholder) : undefined}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <div className="px-1 pt-1 pb-1">

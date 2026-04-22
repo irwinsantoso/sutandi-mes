@@ -290,6 +290,11 @@ export function OutboundForm({ productionOrders, items, locations, defaultProduc
                     label: `${po.orderNumber} (${po.type})`,
                   })),
                 ]}
+                renderValue={(val) => {
+                  if (val === "__none__") return "None"
+                  const po = productionOrders.find((p) => p.id === val)
+                  return po ? `${po.orderNumber} (${po.type})` : val
+                }}
               />
             </div>
 
@@ -472,6 +477,10 @@ export function OutboundForm({ productionOrders, items, locations, defaultProduc
                         label: `${item.code} - ${item.name}`,
                         searchText: `${item.code} ${item.name}`,
                       }))}
+                      renderValue={(val) => {
+                        const item = items.find((i) => i.id === val)
+                        return item ? `${item.code} - ${item.name}` : val
+                      }}
                     />
                   </div>
 
@@ -561,6 +570,10 @@ export function OutboundForm({ productionOrders, items, locations, defaultProduc
                         label: `${loc.warehouse.code} - ${loc.code} (${loc.name})`,
                         searchText: `${loc.warehouse.code} ${loc.warehouse.name} ${loc.code} ${loc.name}`,
                       }))}
+                      renderValue={(val) => {
+                        const loc = locations.find((l) => l.id === val)
+                        return loc ? `${loc.warehouse.code} - ${loc.code} (${loc.name})` : val
+                      }}
                     />
                   </div>
                 </div>

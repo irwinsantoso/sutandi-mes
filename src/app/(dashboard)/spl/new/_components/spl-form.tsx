@@ -375,6 +375,10 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
                         label: `${item.code} - ${item.name}`,
                         searchText: `${item.code} ${item.name}`,
                       }))}
+                      renderValue={(val) => {
+                        const item = items.find((i) => i.id === val)
+                        return item ? `${item.code} - ${item.name}` : val
+                      }}
                     />
                   </div>
 
@@ -419,7 +423,7 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
                       <SelectContent>
                         <SelectItem value="__none__" disabled>Select UOM</SelectItem>
                         {availableUoms.map((uom) => (
-                          <SelectItem key={uom.id} value={uom.id}>
+                          <SelectItem key={uom.id} value={uom.id} label={`${uom.name} (${uom.code})`}>
                             {uom.name} ({uom.code})
                           </SelectItem>
                         ))}
@@ -438,6 +442,10 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
                         label: `${loc.warehouse.code} - ${loc.code} (${loc.name})`,
                         searchText: `${loc.warehouse.code} ${loc.warehouse.name} ${loc.code} ${loc.name}`,
                       }))}
+                      renderValue={(val) => {
+                        const loc = locations.find((l) => l.id === val)
+                        return loc ? `${loc.warehouse.code} - ${loc.code} (${loc.name})` : val
+                      }}
                     />
                   </div>
                 </div>
@@ -473,6 +481,12 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
                   searchText: `${item.code} ${item.name}`,
                 })),
               ]}
+              renderValue={(val) => {
+                if (val === "__none__") return "— Select output item —"
+                if (val === "__new__") return "+ Create new item"
+                const item = items.find((i) => i.id === val)
+                return item ? `${item.code} - ${item.name}` : val
+              }}
             />
           </div>
 
@@ -542,12 +556,18 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
                 onValueChange={(val: string | null) => setOutputUomId(!val || val === "__none__" ? "" : val)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select UOM" />
+                  <SelectValue placeholder="Select UOM">
+                    {(value: string | null) => {
+                      if (!value || value === "__none__") return "Select UOM"
+                      const uom = outputUomOptions.find((u) => u.id === value)
+                      return uom ? `${uom.name} (${uom.code})` : value
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__" disabled>Select UOM</SelectItem>
                   {outputUomOptions.map((uom) => (
-                    <SelectItem key={uom.id} value={uom.id}>
+                    <SelectItem key={uom.id} value={uom.id} label={`${uom.name} (${uom.code})`}>
                       {uom.name} ({uom.code})
                     </SelectItem>
                   ))}
@@ -566,6 +586,10 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
                   label: `${loc.warehouse.code} - ${loc.code} (${loc.name})`,
                   searchText: `${loc.warehouse.code} ${loc.warehouse.name} ${loc.code} ${loc.name}`,
                 }))}
+                renderValue={(val) => {
+                  const loc = locations.find((l) => l.id === val)
+                  return loc ? `${loc.warehouse.code} - ${loc.code} (${loc.name})` : val
+                }}
               />
             </div>
           </div>
