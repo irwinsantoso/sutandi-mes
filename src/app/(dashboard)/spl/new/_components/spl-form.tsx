@@ -73,6 +73,7 @@ interface MaterialLine {
   uomId: string
   batchLot: string
   locationId: string
+  departmentName: string
   notes: string
 }
 
@@ -84,6 +85,7 @@ function createEmptyMaterial(): MaterialLine {
     uomId: "",
     batchLot: "",
     locationId: "",
+    departmentName: "",
     notes: "",
   }
 }
@@ -219,6 +221,7 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
           uomId: m.uomId,
           batchLot: m.batchLot || undefined,
           locationId: m.locationId,
+          departmentName: m.departmentName || undefined,
           notes: m.notes || undefined,
         })),
       })
@@ -446,6 +449,15 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
                         const loc = locations.find((l) => l.id === val)
                         return loc ? `${loc.warehouse.code} - ${loc.code} (${loc.name})` : val
                       }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Department</Label>
+                    <Input
+                      placeholder="e.g. Produksi (optional)"
+                      value={mat.departmentName}
+                      onChange={(e) => updateMaterial(index, { departmentName: e.target.value })}
                     />
                   </div>
                 </div>

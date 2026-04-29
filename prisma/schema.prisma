@@ -497,6 +497,7 @@ model DirectWorkOrderMaterial {
   quantityInBaseUom Decimal         @map("quantity_in_base_uom") @db.Decimal(18, 4)
   batchLot          String?         @map("batch_lot")
   locationId        String          @map("location_id")
+  departmentName    String?         @map("department_name")
   notes             String?
   createdAt         DateTime        @default(now()) @map("created_at")
 

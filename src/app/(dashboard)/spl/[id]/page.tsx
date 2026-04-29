@@ -146,6 +146,7 @@ export default async function SplDetailPage({ params }: SplDetailPageProps) {
                   <th className="px-4 py-2 text-left font-medium">Unit</th>
                   <th className="px-4 py-2 text-left font-medium">Batch/Lot</th>
                   <th className="px-4 py-2 text-left font-medium">Location</th>
+                  <th className="px-4 py-2 text-left font-medium">Department</th>
                 </tr>
               </thead>
               <tbody>
@@ -164,6 +165,7 @@ export default async function SplDetailPage({ params }: SplDetailPageProps) {
                       <span className="mx-1">/</span>
                       <span>{mat.location.code}</span>
                     </td>
+                    <td className="px-4 py-2">{mat.departmentName || "-"}</td>
                   </tr>
                 ))}
               </tbody>

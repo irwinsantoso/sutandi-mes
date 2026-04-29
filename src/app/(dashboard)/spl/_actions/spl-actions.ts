@@ -15,6 +15,7 @@ const splMaterialSchema = z.object({
   uomId: z.string().min(1, "UOM is required"),
   batchLot: z.string().optional(),
   locationId: z.string().min(1, "Location is required"),
+  departmentName: z.string().optional(),
   notes: z.string().optional(),
 })
 
@@ -59,6 +60,7 @@ export async function createDirectWorkOrder(data: {
     uomId: string
     batchLot?: string
     locationId: string
+    departmentName?: string
     notes?: string
   }>
 }) {
@@ -124,6 +126,7 @@ export async function createDirectWorkOrder(data: {
               quantityInBaseUom: mat.quantityInBaseUom,
               batchLot: mat.batchLot || null,
               locationId: mat.locationId,
+              departmentName: mat.departmentName || null,
               notes: mat.notes || null,
             })),
           },
