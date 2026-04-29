@@ -24,6 +24,8 @@ model User {
   inboundTransactions  InboundTransaction[]
   outboundTransactions OutboundTransaction[]
   productionOrders     ProductionOrder[]
+  materialRequests     MaterialRequest[]
+  directWorkOrders     DirectWorkOrder[]
 
   @@map("users")
 }
@@ -59,6 +61,8 @@ model Item {
   productionOrderOutputs       ProductionOrderOutput[]
   inventoryRecords             Inventory[]
   stockMovements               StockMovement[]
+  directWorkOrderMaterials     DirectWorkOrderMaterial[]
+  directWorkOrderOutputs       DirectWorkOrder[]         @relation("DWOOutputItem")
 
   @@map("items")
 }
@@ -93,6 +97,8 @@ model Uom {
   productionOrderOutputs   ProductionOrderOutput[]
   inventoryRecords         Inventory[]
   stockMovements           StockMovement[]
+  directWorkOrderMaterials DirectWorkOrderMaterial[]
+  directWorkOrderOutputs   DirectWorkOrder[]
 
   @@map("uom")
 }
@@ -146,6 +152,8 @@ model Location {
   outboundTransactionItems OutboundTransactionItem[]
   inventoryRecords         Inventory[]
   stockMovements           StockMovement[]
+  directWorkOrderMaterials DirectWorkOrderMaterial[]
+  directWorkOrderOutputs   DirectWorkOrder[]
 
   @@map("locations")
 }
@@ -401,4 +409,108 @@ enum MovementType {
   ADJUSTMENT
   TRANSFER
   PRODUCTION
+}
+
+// ============================================================
+// MATERIAL REQUESTS (SKM)
+// ============================================================
+
+model MaterialRequest {
+  id            String            @id @default(cuid())
+  requestNumber String            @unique @map("request_number")
+  requestDate   DateTime          @map("request_date")
+  notes         String?
+  status        TransactionStatus @default(DRAFT)
+  createdById   String            @map("created_by_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  createdBy User                  @relation(fields: [createdById], references: [id])
+  items     MaterialRequestItem[]
+
+  @@map("material_requests")
+}
+
+model MaterialRequestItem {
+  id                String   @id @default(cuid())
+  materialRequestId String   @map("material_request_id")
+  lineNumber        Int      @map("line_number")
+  itemCode          String   @map("item_code")
+  itemName          String   @map("item_name")
+  qtyRequired       Decimal  @map("qty_required") @db.Decimal(18, 4)
+  qtyBuy            Decimal? @map("qty_buy") @db.Decimal(18, 4)
+  qtyStock          Decimal? @map("qty_stock") @db.Decimal(18, 4)
+  uom               String
+  departmentName    String?  @map("department_name")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  materialRequest MaterialRequest @relation(fields: [materialRequestId], references: [id], onDelete: Cascade)
+
+  @@map("material_request_items")
+}
+
+// ============================================================
+// DIRECT WORK ORDERS (SPL - Surat Pengerjaan Langsung)
+// ============================================================
+
+model DirectWorkOrder {
+  id                  String                @id @default(cuid())
+  orderNumber         String                @unique @map("order_number")
+  date                DateTime
+  transferFrom        String                @map("transfer_from")
+  transferTo          String                @map("transfer_to")
+  transferToAddress   String?               @map("transfer_to_address")
+  preparedBy          String                @map("prepared_by")
+  approvedBy          String?               @map("approved_by")
+  receivedBy          String?               @map("received_by")
+  description         String?
+
+  outputItemId        String?               @map("output_item_id")
+  outputItemName      String                @map("output_item_name")
+  outputItemCode      String?               @map("output_item_code")
+  outputCategoryId    String?               @map("output_category_id")
+  outputQty           Decimal               @map("output_qty") @db.Decimal(18, 4)
+  outputUomId         String                @map("output_uom_id")
+  outputLocationId    String                @map("output_location_id")
+
+  status              DirectWorkOrderStatus @default(DRAFT)
+  createdById         String                @map("created_by_id")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+
+  outputItem          Item?                 @relation("DWOOutputItem", fields: [outputItemId], references: [id])
+  outputUom           Uom                   @relation(fields: [outputUomId], references: [id])
+  outputLocation      Location              @relation(fields: [outputLocationId], references: [id])
+  createdBy           User                  @relation(fields: [createdById], references: [id])
+  materials           DirectWorkOrderMaterial[]
+
+  @@map("direct_work_orders")
+}
+
+model DirectWorkOrderMaterial {
+  id                String          @id @default(cuid())
+  workOrderId       String          @map("work_order_id")
+  itemId            String          @map("item_id")
+  quantity          Decimal         @db.Decimal(18, 4)
+  uomId             String          @map("uom_id")
+  quantityInBaseUom Decimal         @map("quantity_in_base_uom") @db.Decimal(18, 4)
+  batchLot          String?         @map("batch_lot")
+  locationId        String          @map("location_id")
+  departmentName    String?         @map("department_name")
+  notes             String?
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  workOrder         DirectWorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  item              Item            @relation(fields: [itemId], references: [id])
+  uom               Uom             @relation(fields: [uomId], references: [id])
+  location          Location        @relation(fields: [locationId], references: [id])
+
+  @@map("direct_work_order_materials")
+}
+
+enum DirectWorkOrderStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
 }

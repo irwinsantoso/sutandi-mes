@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import {
   Card,
   CardContent,
@@ -318,29 +319,21 @@ export function ProductionOrderForm({
               <div className="flex items-end gap-3">
                 <div className="flex-1 space-y-2">
                   <Label>Item</Label>
-                  <Select
+                  <SearchableSelect
                     value={material.itemId}
-                    onValueChange={(val) =>
-                      val && updateMaterial(index, "itemId", val)
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select item">
-                        {(value: string | null) => {
-                          if (!value) return "Select item";
-                          const item = items.find((i) => i.id === value);
-                          return item ? `${item.code} - ${item.name}` : value;
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {items.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.code} - {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => val && updateMaterial(index, "itemId", val)}
+                    placeholder="Select item"
+                    options={items.map((item) => ({
+                      value: item.id,
+                      label: `${item.code} - ${item.name}`,
+                      searchText: `${item.code} ${item.name}`,
+                    }))}
+                    disabled={isPending}
+                    renderValue={(val) => {
+                      const item = items.find((i) => i.id === val)
+                      return item ? `${item.code} - ${item.name}` : val
+                    }}
+                  />
                 </div>
                 <div className="w-32 space-y-2">
                   <Label>Qty Required</Label>
@@ -428,29 +421,21 @@ export function ProductionOrderForm({
               <div className="flex items-end gap-3">
                 <div className="flex-1 space-y-2">
                   <Label>Item</Label>
-                  <Select
+                  <SearchableSelect
                     value={output.itemId}
-                    onValueChange={(val) =>
-                      val && updateOutput(index, "itemId", val)
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select item">
-                        {(value: string | null) => {
-                          if (!value) return "Select item";
-                          const item = items.find((i) => i.id === value);
-                          return item ? `${item.code} - ${item.name}` : value;
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {items.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.code} - {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => val && updateOutput(index, "itemId", val)}
+                    placeholder="Select item"
+                    options={items.map((item) => ({
+                      value: item.id,
+                      label: `${item.code} - ${item.name}`,
+                      searchText: `${item.code} ${item.name}`,
+                    }))}
+                    disabled={isPending}
+                    renderValue={(val) => {
+                      const item = items.find((i) => i.id === val)
+                      return item ? `${item.code} - ${item.name}` : val
+                    }}
+                  />
                 </div>
                 <div className="w-32 space-y-2">
                   <Label>Target Qty</Label>

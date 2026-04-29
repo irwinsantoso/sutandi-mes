@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import {
   Card,
   CardContent,
@@ -65,6 +66,7 @@ interface OutboundFormProps {
   productionOrders: ProductionOrderOption[]
   items: ItemOption[]
   locations: LocationOption[]
+  defaultProductionOrderId?: string
 }
 
 interface LineItem {
@@ -108,13 +110,36 @@ function getAvailableUoms(item: ItemOption | undefined): Array<{ id: string; cod
   return Array.from(uoms.values())
 }
 
-export function OutboundForm({ productionOrders, items, locations }: OutboundFormProps) {
+export function OutboundForm({ productionOrders, items, locations, defaultProductionOrderId }: OutboundFormProps) {
+  const defaultPO = defaultProductionOrderId
+    ? productionOrders.find((po) => po.id === defaultProductionOrderId)
+    : undefined
+
   const [isPending, startTransition] = useTransition()
-  const [productionOrderId, setProductionOrderId] = useState("")
-  const [purpose, setPurpose] = useState("")
+  const [productionOrderId, setProductionOrderId] = useState(defaultPO?.id ?? "")
+  const [purpose, setPurpose] = useState(defaultPO ? "PRODUCTION" : "")
   const [issueDate, setIssueDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [notes, setNotes] = useState("")
-  const [lineItems, setLineItems] = useState<LineItem[]>([createEmptyLineItem()])
+  const [lineItems, setLineItems] = useState<LineItem[]>(() => {
+    if (!defaultPO || defaultPO.materials.length === 0) return [createEmptyLineItem()]
+    return defaultPO.materials.map((mat) => {
+      const item = items.find((i) => i.id === mat.itemId)
+      const remaining = Math.max(0, mat.requiredQuantity - mat.consumedQuantity)
+      return {
+        key: crypto.randomUUID(),
+        itemId: mat.itemId,
+        quantity: remaining > 0 ? String(remaining) : "",
+        uomId: item?.baseUomId ?? "",
+        batchLot: "",
+        locationId: "",
+        scannedQrData: "",
+        notes: "",
+        showQrInput: false,
+        qrText: "",
+        qrOriginalQty: null,
+      }
+    })
+  })
 
   const selectedPO = productionOrders.find((po) => po.id === productionOrderId)
 
@@ -254,29 +279,23 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Production Order (Optional)</Label>
-              <Select
+              <SearchableSelect
                 value={productionOrderId || "__none__"}
                 onValueChange={handlePOChange}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select production order">
-                    {(value: string | null) => {
-                      if (!value) return "Select production order";
-                      if (value === "__none__") return "None";
-                      const po = productionOrders.find((p) => p.id === value);
-                      return po ? `${po.orderNumber} (${po.type})` : value;
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {productionOrders.map((po) => (
-                    <SelectItem key={po.id} value={po.id}>
-                      {po.orderNumber} ({po.type})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select production order"
+                options={[
+                  { value: "__none__", label: "None" },
+                  ...productionOrders.map((po) => ({
+                    value: po.id,
+                    label: `${po.orderNumber} (${po.type})`,
+                  })),
+                ]}
+                renderValue={(val) => {
+                  if (val === "__none__") return "None"
+                  const po = productionOrders.find((p) => p.id === val)
+                  return po ? `${po.orderNumber} (${po.type})` : val
+                }}
+              />
             </div>
 
             <div className="space-y-2">
@@ -447,32 +466,22 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label>Item</Label>
-                    <Select
-                      value={line.itemId || "__none__"}
+                    <SearchableSelect
+                      value={line.itemId}
                       onValueChange={(val) =>
-                        updateLineItem(index, {
-                          itemId: !val || val === "__none__" ? "" : val,
-                        })
+                        updateLineItem(index, { itemId: val })
                       }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select item">
-                          {(value: string | null) => {
-                            if (!value || value === "__none__") return "Select item";
-                            const item = items.find((i) => i.id === value);
-                            return item ? `${item.code} - ${item.name}` : value;
-                          }}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__" disabled>Select item</SelectItem>
-                        {items.map((item) => (
-                          <SelectItem key={item.id} value={item.id}>
-                            {item.code} - {item.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select item"
+                      options={items.map((item) => ({
+                        value: item.id,
+                        label: `${item.code} - ${item.name}`,
+                        searchText: `${item.code} ${item.name}`,
+                      }))}
+                      renderValue={(val) => {
+                        const item = items.find((i) => i.id === val)
+                        return item ? `${item.code} - ${item.name}` : val
+                      }}
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -550,32 +559,22 @@ export function OutboundForm({ productionOrders, items, locations }: OutboundFor
 
                   <div className="space-y-2">
                     <Label>Location</Label>
-                    <Select
-                      value={line.locationId || "__none__"}
+                    <SearchableSelect
+                      value={line.locationId}
                       onValueChange={(val) =>
-                        updateLineItem(index, {
-                          locationId: !val || val === "__none__" ? "" : val,
-                        })
+                        updateLineItem(index, { locationId: val })
                       }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select location">
-                          {(value: string | null) => {
-                            if (!value || value === "__none__") return "Select location";
-                            const loc = locations.find((l) => l.id === value);
-                            return loc ? `${loc.warehouse.code} - ${loc.code} (${loc.name})` : value;
-                          }}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__" disabled>Select location</SelectItem>
-                        {locations.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id}>
-                            {loc.warehouse.code} - {loc.code} ({loc.name})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select location"
+                      options={locations.map((loc) => ({
+                        value: loc.id,
+                        label: `${loc.warehouse.code} - ${loc.code} (${loc.name})`,
+                        searchText: `${loc.warehouse.code} ${loc.warehouse.name} ${loc.code} ${loc.name}`,
+                      }))}
+                      renderValue={(val) => {
+                        const loc = locations.find((l) => l.id === val)
+                        return loc ? `${loc.warehouse.code} - ${loc.code} (${loc.name})` : val
+                      }}
+                    />
                   </div>
                 </div>
 

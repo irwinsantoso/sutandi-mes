@@ -54,7 +54,7 @@ export function ItemClient({ items }: ItemClientProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the item
+              This action cannot be undone. This will permanently delete the item, inventory data, 
               and all its UOM conversions.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -2,7 +2,12 @@ import { prisma } from "@/lib/prisma"
 import { PageHeader } from "@/components/shared/page-header"
 import { OutboundForm } from "../_components/outbound-form"
 
-export default async function NewOutboundPage() {
+export default async function NewOutboundPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ poId?: string }>
+}) {
+  const { poId } = await searchParams
   const [productionOrders, items, locations] = await Promise.all([
     prisma.productionOrder.findMany({
       where: {
@@ -72,6 +77,7 @@ export default async function NewOutboundPage() {
         productionOrders={serializedProductionOrders}
         items={items}
         locations={locations}
+        defaultProductionOrderId={poId}
       />
     </div>
   )
