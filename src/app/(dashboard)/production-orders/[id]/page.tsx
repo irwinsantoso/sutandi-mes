@@ -206,6 +206,15 @@ export default async function ProductionOrderDetailPage({
                 {statusLabels[order.status]}
               </Badge>
             </div>
+            {order.projectName && (
+              <>
+                <Separator />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nama Proyek</span>
+                  <span className="font-medium">{order.projectName}</span>
+                </div>
+              </>
+            )}
             <Separator />
             <div className="flex justify-between">
               <span className="text-muted-foreground">Created By</span>

@@ -24,6 +24,7 @@ const outputSchema = z.object({
 const createSchema = z.object({
   type: z.enum(["WIP", "FINISHED_GOOD"]),
   description: z.string().optional(),
+  projectName: z.string().optional(),
   plannedStartDate: z.string().optional(),
   plannedEndDate: z.string().optional(),
   notes: z.string().optional(),
@@ -34,6 +35,7 @@ const createSchema = z.object({
 const updateSchema = z.object({
   type: z.enum(["WIP", "FINISHED_GOOD"]),
   description: z.string().optional(),
+  projectName: z.string().optional(),
   plannedStartDate: z.string().optional(),
   plannedEndDate: z.string().optional(),
   notes: z.string().optional(),
@@ -44,6 +46,7 @@ const updateSchema = z.object({
 export async function createProductionOrder(data: {
   type: "WIP" | "FINISHED_GOOD"
   description?: string
+  projectName?: string
   plannedStartDate?: string
   plannedEndDate?: string
   notes?: string
@@ -68,6 +71,7 @@ export async function createProductionOrder(data: {
         orderNumber,
         type: parsed.data.type,
         description: parsed.data.description || null,
+        projectName: parsed.data.projectName || null,
         plannedStartDate: parsed.data.plannedStartDate
           ? new Date(parsed.data.plannedStartDate)
           : null,
@@ -109,6 +113,7 @@ export async function updateProductionOrder(
   data: {
     type: "WIP" | "FINISHED_GOOD"
     description?: string
+    projectName?: string
     plannedStartDate?: string
     plannedEndDate?: string
     notes?: string
@@ -150,6 +155,7 @@ export async function updateProductionOrder(
         data: {
           type: parsed.data.type,
           description: parsed.data.description || null,
+          projectName: parsed.data.projectName || null,
           plannedStartDate: parsed.data.plannedStartDate
             ? new Date(parsed.data.plannedStartDate)
             : null,

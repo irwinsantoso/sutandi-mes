@@ -13,6 +13,7 @@ export default async function ProductionOrdersPage() {
       orderNumber: true,
       type: true,
       description: true,
+      projectName: true,
       status: true,
       plannedStartDate: true,
       createdBy: {

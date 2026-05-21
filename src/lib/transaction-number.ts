@@ -2,20 +2,20 @@ import { format } from "date-fns"
 import { prisma } from "./prisma"
 
 export async function generateTransactionNumber(
-  prefix: "IN" | "OUT" | "PO" | "SKM" | "SPL"
+  prefix: "IN" | "OUT" | "PO" | "SKM" | "SPL" | "RI" | "RO"
 ): Promise<string> {
   const today = format(new Date(), "yyyyMMdd")
 
   let latest: string | null = null
 
-  if (prefix === "IN") {
+  if (prefix === "IN" || prefix === "RI") {
     const result = await prisma.inboundTransaction.findFirst({
       where: { transactionNumber: { startsWith: `${prefix}-${today}-` } },
       orderBy: { transactionNumber: "desc" },
       select: { transactionNumber: true },
     })
     latest = result?.transactionNumber ?? null
-  } else if (prefix === "OUT") {
+  } else if (prefix === "OUT" || prefix === "RO") {
     const result = await prisma.outboundTransaction.findFirst({
       where: { transactionNumber: { startsWith: `${prefix}-${today}-` } },
       orderBy: { transactionNumber: "desc" },

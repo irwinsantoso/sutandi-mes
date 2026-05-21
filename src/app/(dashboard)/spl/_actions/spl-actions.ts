@@ -28,6 +28,7 @@ const createSplSchema = z.object({
   approvedBy: z.string().optional(),
   receivedBy: z.string().optional(),
   description: z.string().optional(),
+  projectName: z.string().optional(),
   outputItemId: z.string().optional(),
   outputItemName: z.string().min(1, "Output item name is required"),
   outputItemCode: z.string().optional(),
@@ -47,6 +48,7 @@ export async function createDirectWorkOrder(data: {
   approvedBy?: string
   receivedBy?: string
   description?: string
+  projectName?: string
   outputItemId?: string
   outputItemName: string
   outputItemCode?: string
@@ -109,6 +111,7 @@ export async function createDirectWorkOrder(data: {
           approvedBy: d.approvedBy || null,
           receivedBy: d.receivedBy || null,
           description: d.description || null,
+          projectName: d.projectName || null,
           outputItemId: d.outputItemId || null,
           outputItemName: d.outputItemName,
           outputItemCode: d.outputItemCode || null,

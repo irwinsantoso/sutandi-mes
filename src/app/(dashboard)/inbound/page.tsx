@@ -8,6 +8,7 @@ import type { InboundRow } from "./_components/inbound-columns"
 
 export default async function InboundPage() {
   const transactions = await prisma.inboundTransaction.findMany({
+    where: { kind: "NORMAL" },
     include: {
       createdBy: { select: { name: true } },
       _count: { select: { items: true } },

@@ -58,6 +58,7 @@ export default async function SplListPage() {
                     <th className="px-4 py-2 text-left font-medium">Date</th>
                     <th className="px-4 py-2 text-left font-medium">Transfer From</th>
                     <th className="px-4 py-2 text-left font-medium">Transfer To</th>
+                    <th className="px-4 py-2 text-left font-medium">Project</th>
                     <th className="px-4 py-2 text-left font-medium">Output Item</th>
                     <th className="px-4 py-2 text-right font-medium">Materials</th>
                     <th className="px-4 py-2 text-left font-medium">Status</th>
@@ -80,6 +81,13 @@ export default async function SplListPage() {
                       </td>
                       <td className="px-4 py-2">{order.transferFrom}</td>
                       <td className="px-4 py-2">{order.transferTo}</td>
+                      <td className="px-4 py-2">
+                        {order.projectName ? (
+                          <span>{order.projectName}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2">
                         {order.outputItem ? (
                           <span>

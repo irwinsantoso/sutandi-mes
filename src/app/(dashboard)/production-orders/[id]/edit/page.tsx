@@ -55,6 +55,7 @@ export default async function EditProductionOrderPage({
           id: order.id,
           type: order.type,
           description: order.description,
+          projectName: order.projectName,
           plannedStartDate: toDateInput(order.plannedStartDate),
           plannedEndDate: toDateInput(order.plannedEndDate),
           notes: order.notes,

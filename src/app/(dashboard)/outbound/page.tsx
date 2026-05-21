@@ -8,6 +8,7 @@ import type { OutboundRow } from "./_components/outbound-columns"
 
 export default async function OutboundPage() {
   const transactions = await prisma.outboundTransaction.findMany({
+    where: { kind: "NORMAL" },
     include: {
       createdBy: { select: { name: true } },
       productionOrder: { select: { orderNumber: true } },
