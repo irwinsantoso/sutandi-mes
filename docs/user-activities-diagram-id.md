@@ -21,9 +21,13 @@ flowchart TB
         TYPE["fa:fa-keyboard  **Input Data**<br/>Isi formulir untuk item,<br/>UOM, gudang"]
         SCAN_IN["fa:fa-qrcode  **Terima Inbound**<br/>Input barang masuk, cetak label bin"]
         SCAN_OUT["fa:fa-barcode  **Scan Outbound**<br/>Pindai QR bin, input qty (parsial ok)"]
+        RETUR_IN["fa:fa-undo  **Retur Inbound**<br/>Terima barang kembali dari customer"]
+        RETUR_OUT["fa:fa-redo  **Retur Outbound**<br/>Kembalikan barang ke supplier"]
         APPROVE["fa:fa-check-circle  **Konfirmasi**<br/>Setujui transaksi"]
         VIEW["fa:fa-chart-bar  **Lihat Laporan**<br/>Stok & pergerakan barang"]
         PRINT["fa:fa-print  **Cetak Label**<br/>Buat label QR"]
+        SPL["fa:fa-file-alt  **Buat SPL**<br/>Direct Work Order"]
+        SKM["fa:fa-clipboard-list  **Buat SKM**<br/>Permintaan Material"]
     end
 
     ADMIN --> LOGIN
@@ -33,16 +37,24 @@ flowchart TB
     LOGIN --> TYPE
     LOGIN --> SCAN_IN
     LOGIN --> SCAN_OUT
+    LOGIN --> RETUR_IN
+    LOGIN --> RETUR_OUT
     LOGIN --> APPROVE
     LOGIN --> VIEW
     LOGIN --> PRINT
+    LOGIN --> SPL
+    LOGIN --> SKM
 
     ADMIN -.-> TYPE
     OP -.-> SCAN_IN
     OP -.-> SCAN_OUT
+    OP -.-> RETUR_IN
+    OP -.-> RETUR_OUT
     SUPER -.-> APPROVE
     SUPER -.-> VIEW
     ADMIN -.-> PRINT
+    OP -.-> SPL
+    SUPER -.-> SKM
 
     classDef role fill:#e0f2fe,stroke:#0284c7,color:#000,stroke-width:2px
     classDef act fill:#fef3c7,stroke:#d97706,color:#000,stroke-width:2px
@@ -76,6 +88,31 @@ flowchart LR
     class H scan
     class D,G input
     class E,F,I,J done
+```
+
+---
+
+## 2b. Alur Retur (Inbound & Outbound)
+
+```mermaid
+flowchart LR
+    subgraph RI["Retur Inbound — Terima dari Customer"]
+        RI1["fa:fa-user<br/>**Customer**<br/>mengembalikan barang"] --> RI2["fa:fa-keyboard<br/>**Buat Retur Inbound**<br/>isi customer, item, qty, lokasi"]
+        RI2 --> RI3["fa:fa-check<br/>**Confirm Retur**<br/>stok BERTAMBAH"]
+    end
+
+    subgraph RO["Retur Outbound — Kembalikan ke Supplier"]
+        RO1["fa:fa-exclamation-triangle<br/>**Barang Cacat/Salah**<br/>perlu dikembalikan"] --> RO2["fa:fa-keyboard<br/>**Buat Retur Outbound**<br/>isi supplier, item, qty, lokasi"]
+        RO2 --> RO3["fa:fa-check<br/>**Confirm Retur**<br/>stok BERKURANG"]
+    end
+
+    classDef in fill:#d1fae5,stroke:#059669,color:#000
+    classDef out fill:#fee2e2,stroke:#dc2626,color:#000
+    classDef action fill:#fef9c3,stroke:#ca8a04,color:#000
+
+    class RI1,RI3 in
+    class RO1,RO3 out
+    class RI2,RO2 action
 ```
 
 ---
@@ -184,6 +221,10 @@ flowchart TB
 | fa:fa-check-circle | Mengonfirmasi / menyetujui transaksi |
 | fa:fa-chart-bar | Melihat laporan & dashboard |
 | fa:fa-print | Mencetak label QR |
+| fa:fa-undo | Retur Inbound — terima barang kembali dari customer |
+| fa:fa-redo | Retur Outbound — kembalikan barang ke supplier |
+| fa:fa-file-alt | SPL — Surat Pengerjaan Langsung |
+| fa:fa-clipboard-list | SKM — Surat Kebutuhan Material |
 | fa:fa-user-shield | Peran Admin |
 | fa:fa-user-tie | Peran Supervisor |
 | fa:fa-user-hard-hat | Peran Operator (lantai gudang) |

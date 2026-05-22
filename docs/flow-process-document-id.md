@@ -89,18 +89,66 @@ Transaksi outbound mencatat barang yang **dikeluarkan** dari gudang.
 
 ---
 
-## 6. Production Order
+## 6. Retur Inbound (Penerimaan Retur dari Customer)
 
-Production order mendefinisikan **Bill of Materials (BOM)** -- material apa yang masuk dan produk apa yang keluar.
+Retur Inbound mencatat barang yang **dikembalikan oleh customer** ke gudang. Digunakan ketika barang yang sebelumnya dikirim/dikeluarkan perlu diterima kembali.
+
+### Alur Proses:
+
+1. Klik **"Retur Inbound Baru"** di menu Transactions → Retur Inbound
+2. Isi informasi header:
+   - **Nama Proyek** *(opsional)* — nama proyek terkait, dengan autocomplete dari proyek yang pernah dibuat
+   - **Customer (Pengembali)** — nama customer yang mengembalikan barang
+   - **Tanggal Penerimaan Retur**
+3. Tambahkan baris item: pilih item, jumlah, UOM, dan lokasi penyimpanan
+4. Simpan sebagai **DRAFT**
+5. Klik **"Confirm Retur"** untuk finalisasi
+6. Setelah dikonfirmasi, stok **bertambah** di inventory dan catatan pergerakan stok dibuat
+
+### Alur Status:
+- **DRAFT** → **CONFIRMED** atau **CANCELLED**
+
+> **Catatan:** Nomor transaksi dibuat otomatis dengan format `RI-YYYYMMDD-###`
+
+---
+
+## 7. Retur Outbound (Pengembalian Barang ke Supplier)
+
+Retur Outbound mencatat barang yang **dikembalikan dari gudang ke supplier**. Digunakan ketika barang yang diterima perlu dikembalikan karena cacat, salah kirim, atau alasan lainnya.
+
+### Alur Proses:
+
+1. Klik **"Retur Outbound Baru"** di menu Transactions → Retur Outbound
+2. Isi informasi header:
+   - **Nama Proyek** *(opsional)* — nama proyek terkait
+   - **Supplier (Tujuan Retur)** — nama supplier tujuan pengembalian
+   - **Tanggal Retur**
+3. Tambahkan baris item: pilih item, jumlah, UOM, dan lokasi pengambilan
+4. Simpan sebagai **DRAFT**
+5. Klik **"Confirm Retur"** untuk finalisasi
+6. Setelah dikonfirmasi, stok **berkurang** dari inventory dan catatan pergerakan stok dibuat
+
+### Alur Status:
+- **DRAFT** → **CONFIRMED** atau **CANCELLED**
+
+> **Catatan:** Nomor transaksi dibuat otomatis dengan format `RO-YYYYMMDD-###`
+
+---
+
+## 8. Production Order
+
+Production order mendefinisikan **Bill of Materials (BOM)** — material apa yang masuk dan produk apa yang keluar.
 
 ### Alur Proses:
 
 1. Klik **"+ New Order"** untuk membuat production order
-2. Pilih tipe order: **WIP** (Work in Progress) atau **Finished Good**
+2. Isi informasi header:
+   - **Nama Proyek** *(opsional)* — nama proyek yang dikerjakan
+   - Pilih tipe order: **WIP** (Work in Progress) atau **Finished Good**
 3. Definisikan **Material** (input) dengan jumlah yang dibutuhkan
 4. Definisikan **Output** (produk) dengan jumlah target
 5. Tetapkan tanggal mulai/selesai yang direncanakan
-6. Progresi status: **DRAFT** -> **IN_PROGRESS** -> **COMPLETED**
+6. Progresi status: **DRAFT** → **IN_PROGRESS** → **COMPLETED**
 7. Material dikonsumsi melalui **Transaksi Outbound** yang tertaut
 8. Output dicatat saat penyelesaian
 
@@ -108,11 +156,64 @@ Production order mendefinisikan **Bill of Materials (BOM)** -- material apa yang
 
 ---
 
-## 7. Inventory
+## 9. SPL — Surat Pengerjaan Langsung
 
-### 7.1 Level Stok
+SPL (Direct Work Order) adalah instruksi pengerjaan langsung yang **mengonsumsi material** dari gudang dan **menghasilkan item baru** sebagai output. Berbeda dengan Production Order, SPL bersifat lebih sederhana dan langsung — cocok untuk proses konversi material singkat.
 
-Menampilkan jumlah stok real-time di seluruh lokasi. Tabel menunjukkan:
+### Alur Proses:
+
+1. Klik **"New SPL"** di menu Production → Direct Work Orders (SPL)
+2. Isi informasi:
+   - **Transfer From** — departemen/lokasi asal pengerjaan
+   - **Transfer To** — departemen/lokasi tujuan
+   - **Nama Proyek** *(opsional)*
+   - **Output Item** — item yang dihasilkan dari pengerjaan
+   - **Tanggal**
+3. Tambahkan baris **Material** yang dikonsumsi (item, jumlah, UOM, lokasi, departemen)
+4. Simpan sebagai **DRAFT**, lalu **Confirm** untuk memproses
+5. Setelah dikonfirmasi, material yang dikonsumsi **berkurang** dari stok
+
+### Alur Status:
+- **DRAFT** → **CONFIRMED** atau **CANCELLED**
+
+> **Catatan:** Nomor SPL dibuat otomatis dengan format `SPL-YYYYMMDD-###`
+
+---
+
+## 10. SKM — Surat Kebutuhan Material
+
+SKM (Material Request) adalah dokumen permintaan material dari tim Engineering ke gudang. Digunakan untuk merencanakan dan mendokumentasikan kebutuhan material sebelum proses produksi atau pengerjaan dimulai.
+
+### Alur Proses:
+
+1. Klik **"New SKM"** di menu Engineering → Material Requests (SKM)
+2. Isi nomor referensi, tanggal, dan keterangan (opsional)
+3. Tambahkan daftar item yang dibutuhkan beserta jumlah
+4. Simpan dan ajukan ke supervisor untuk ditinjau
+5. Supervisor dapat **menyetujui** atau **menolak** permintaan
+
+### Alur Status:
+- **DRAFT** → **APPROVED** atau **REJECTED**
+
+> **Catatan:** Nomor SKM dibuat otomatis dengan format `SKM-YYYYMMDD-###`
+
+---
+
+## 11. Inventory
+
+### 11.1 Ringkasan Stok (Stock Summary)
+
+Tampilan ringkasan stok **per item** (total dari semua lokasi). Berguna untuk melihat ketersediaan global suatu item tanpa perlu memfilter per lokasi.
+
+Tabel menunjukkan:
+- **Kode & Nama Item** dan kategorinya
+- **Total On Hand** — jumlah keseluruhan di semua lokasi
+- **Total Reserved** — dialokasikan untuk production order yang aktif
+- **Total Available** — On Hand dikurangi Reserved
+
+### 11.2 Level Stok (Stock Levels)
+
+Tampilan stok **per baris inventory** (per item + lokasi + batch + UOM). Menunjukkan detail lengkap setiap posisi stok:
 
 - **Kode & Nama Item**
 - **Kategori** (Raw Material, Finished Good, dll.)
@@ -125,7 +226,7 @@ Menampilkan jumlah stok real-time di seluruh lokasi. Tabel menunjukkan:
 
 ![Level Stok](screenshots/07-inventory.png)
 
-### 7.2 Pergerakan Stok
+### 11.3 Pergerakan Stok
 
 **Audit trail** lengkap untuk semua perubahan inventory. Setiap perubahan stok dicatat dengan:
 
@@ -140,15 +241,15 @@ Menampilkan jumlah stok real-time di seluruh lokasi. Tabel menunjukkan:
 
 ---
 
-## 8. Import Data (Excel)
+## 12. Import Data (Excel)
 
 Import data secara massal ke sistem menggunakan file Excel. Mendukung import:
 
-- **Items** - Master data item
-- **Warehouses** - Gudang dan lokasi penyimpanan
-- **UOM Conversions** - Faktor konversi satuan
-- **Inventory** - Penyesuaian level stok
-- **BOM** - Bill of Materials (membuat Production Order)
+- **Items** — Master data item
+- **Warehouses** — Gudang dan lokasi penyimpanan
+- **UOM Conversions** — Faktor konversi satuan
+- **Inventory** — Penyesuaian level stok
+- **BOM** — Bill of Materials (membuat Production Order)
 
 ### Alur Proses:
 
@@ -167,25 +268,49 @@ Import data secara massal ke sistem menggunakan file Excel. Mendukung import:
 ## Ringkasan Alur Sistem Keseluruhan
 
 ```
-Setup Master Data          Transaksi                 Inventory
-==================    ======================    ==================
+Setup Master Data     Transaksi                          Inventory
+=================     ================================   ====================
 
-  Items ──────────>   Inbound (Penerimaan) ──>   + Stok Ditambah
-  UOM   ──────────>     └── Confirm              │
-  Gudang ─────────>                               │
-                                                  ├── Level Stok
-                      Outbound (Pengeluaran) ─>  │  (Real-time)
-                        ├── Pindai QR Bin        │    └── Cetak Label Bin
-                        ├── (parsial ok)         │
-                        └── Confirm         ──>  - Stok Dikurangi
-                                                  │
-                      Production Order            ├── Pergerakan Stok
-                        ├── Definisikan BOM       │  (Audit Trail)
-                        ├── Material ──────────>  │
-                        └── Output ────────────>  │
+Items ──────────>     Inbound (Penerimaan) ─────────>   + Stok Bertambah
+UOM   ──────────>       └── Confirm                     │
+Gudang ─────────>                                        │
+                      Outbound (Pengeluaran) ──────>     - Stok Berkurang
+                        ├── Pindai QR Bin (parsial ok)  │
+                        └── Confirm                     │
+                                                         ├── Ringkasan Stok
+                      Retur Inbound ────────────────>   + Stok Bertambah
+                        (barang kembali dari customer)   │
+                                                         │
+                      Retur Outbound ───────────────>   - Stok Berkurang
+                        (barang dikembalikan ke supplier)│
+                                                         │
+                      Production Order ─────────────>   + Output ke Stok
+                        ├── Nama Proyek (opsional)       ├── Level Stok
+                        ├── Definisikan BOM              │   (per lokasi+batch)
+                        └── Material via Outbound        │
+                                                         ├── Ringkasan Stok
+                      SPL (Direct Work Order) ──────>   - Material Berkurang
+                        ├── Nama Proyek (opsional)       │
+                        └── Output Item                  │
+                                                         ├── Pergerakan Stok
+                      SKM (Material Request)             │   (Audit Trail)
+                        └── Permintaan ke gudang         │
+                                                         └── Cetak Label Bin
 
-  Import Excel ──────────────────────────────>   Muat Data Massal
+Import Excel ──────────────────────────────────────>    Muat Data Massal
 ```
+
+---
+
+## Fitur Lintas Modul: Nama Proyek
+
+Field **Nama Proyek** tersedia di modul berikut:
+- Retur Inbound
+- Retur Outbound
+- Production Orders
+- SPL (Direct Work Orders)
+
+Fitur ini memungkinkan transaksi dari modul berbeda dikelompokkan ke dalam satu proyek yang sama. Saat mengetik nama proyek, sistem menampilkan **autocomplete** berdasarkan nama proyek yang sudah pernah digunakan sebelumnya.
 
 ---
 

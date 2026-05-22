@@ -61,6 +61,38 @@ flowchart TB
                 PO_DRAFT --- BOM_MAT
                 PO_DRAFT --- BOM_OUT
             end
+
+            subgraph RETUR_INBOUND_FLOW["Retur Inbound Flow"]
+                RI_NEW["/retur-inbound/new<br>Create Retur Inbound"]
+                RI_DRAFT["Status: DRAFT"]
+                RI_CONFIRM["Status: CONFIRMED"]
+                RI_NEW --> RI_DRAFT
+                RI_DRAFT --> RI_CONFIRM
+            end
+
+            subgraph RETUR_OUTBOUND_FLOW["Retur Outbound Flow"]
+                RO_NEW["/retur-outbound/new<br>Create Retur Outbound"]
+                RO_DRAFT["Status: DRAFT"]
+                RO_CONFIRM["Status: CONFIRMED"]
+                RO_NEW --> RO_DRAFT
+                RO_DRAFT --> RO_CONFIRM
+            end
+
+            subgraph SPL_FLOW["SPL Flow"]
+                SPL_NEW["/spl/new<br>Create Direct Work Order"]
+                SPL_DRAFT["Status: DRAFT"]
+                SPL_CONFIRM["Status: CONFIRMED"]
+                SPL_NEW --> SPL_DRAFT
+                SPL_DRAFT --> SPL_CONFIRM
+            end
+
+            subgraph SKM_FLOW["SKM Flow"]
+                SKM_NEW["/skm/new<br>Create Material Request"]
+                SKM_DRAFT["Status: DRAFT"]
+                SKM_APPROVED["Status: APPROVED"]
+                SKM_NEW --> SKM_DRAFT
+                SKM_DRAFT --> SKM_APPROVED
+            end
         end
 
         subgraph INVENTORY["Inventory Management"]
@@ -94,6 +126,18 @@ flowchart TB
     OUT_CONFIRM -->|"- Stock<br>OUTBOUND Movement"| STOCK
     OUT_CONFIRM -->|"Audit Trail"| MOVEMENTS
 
+    %% Retur Inbound affects inventory
+    RI_CONFIRM -->|"+ Stock<br>INBOUND Movement"| STOCK
+    RI_CONFIRM -->|"Audit Trail"| MOVEMENTS
+
+    %% Retur Outbound affects inventory
+    RO_CONFIRM -->|"- Stock<br>OUTBOUND Movement"| STOCK
+    RO_CONFIRM -->|"Audit Trail"| MOVEMENTS
+
+    %% SPL affects inventory
+    SPL_CONFIRM -->|"- Materials<br>OUTBOUND Movement"| STOCK
+    SPL_CONFIRM -->|"Audit Trail"| MOVEMENTS
+
     %% Production links to outbound
     PO_PROGRESS -.->|"Material Issue"| OUT_NEW
     PO_COMPLETE -->|"PRODUCTION Movement"| STOCK
@@ -109,10 +153,18 @@ flowchart TB
     ITEMS -.->|"Item Lookup"| IN_NEW
     ITEMS -.->|"Item Lookup"| OUT_NEW
     ITEMS -.->|"Item Lookup"| PO_NEW
+    ITEMS -.->|"Item Lookup"| RI_NEW
+    ITEMS -.->|"Item Lookup"| RO_NEW
+    ITEMS -.->|"Item Lookup"| SPL_NEW
     UOM_CONV -.->|"Qty Conversion<br>to Base UOM"| IN_CONFIRM
     UOM_CONV -.->|"Qty Conversion<br>to Base UOM"| OUT_CONFIRM
+    UOM_CONV -.->|"Qty Conversion<br>to Base UOM"| RI_CONFIRM
+    UOM_CONV -.->|"Qty Conversion<br>to Base UOM"| RO_CONFIRM
     WAREHOUSES -.->|"Location Selection"| IN_NEW
     WAREHOUSES -.->|"Location Selection"| OUT_NEW
+    WAREHOUSES -.->|"Location Selection"| RI_NEW
+    WAREHOUSES -.->|"Location Selection"| RO_NEW
+    WAREHOUSES -.->|"Location Selection"| SPL_NEW
 
     subgraph DB["PostgreSQL Database (Prisma ORM)"]
         direction LR
@@ -122,9 +174,11 @@ flowchart TB
         T_UOMCONV["UomConversion"]
         T_WH["Warehouse"]
         T_LOC["Location"]
-        T_INBOUND["InboundTransaction<br>+ Items"]
-        T_OUTBOUND["OutboundTransaction<br>+ Items"]
+        T_INBOUND["InboundTransaction<br>+ Items<br>(kind: REGULAR / RETUR)"]
+        T_OUTBOUND["OutboundTransaction<br>+ Items<br>(kind: REGULAR / RETUR)"]
         T_PO["ProductionOrder<br>+ Materials + Outputs"]
+        T_DWO["DirectWorkOrder (SPL)<br>+ Materials"]
+        T_MR["MaterialRequest (SKM)<br>+ Items"]
         T_INV["Inventory"]
         T_MOVE["StockMovement"]
     end
@@ -140,11 +194,19 @@ flowchart TB
         IN_NUM["IN-YYYYMMDD-###"]
         OUT_NUM["OUT-YYYYMMDD-###"]
         PO_NUM["PO-YYYYMMDD-###"]
+        RI_NUM["RI-YYYYMMDD-###"]
+        RO_NUM["RO-YYYYMMDD-###"]
+        SPL_NUM["SPL-YYYYMMDD-###"]
+        SKM_NUM["SKM-YYYYMMDD-###"]
     end
 
     IN_NEW -.-> IN_NUM
     OUT_NEW -.-> OUT_NUM
     PO_NEW -.-> PO_NUM
+    RI_NEW -.-> RI_NUM
+    RO_NEW -.-> RO_NUM
+    SPL_NEW -.-> SPL_NUM
+    SKM_NEW -.-> SKM_NUM
 
     %% Styling
     classDef auth fill:#fce4ec,stroke:#c62828,color:#000
@@ -157,11 +219,11 @@ flowchart TB
 
     class LOGIN,NEXTAUTH,MIDDLEWARE auth
     class ITEMS,UOM,WAREHOUSES,UOM_CONV master
-    class IN_NEW,OUT_NEW,PO_NEW,QR_LABEL,QR_SCAN,BOM_MAT,BOM_OUT transaction
-    class IN_DRAFT,OUT_DRAFT,PO_DRAFT,IN_CONFIRM,OUT_CONFIRM,PO_PROGRESS,PO_COMPLETE status
+    class IN_NEW,OUT_NEW,PO_NEW,QR_LABEL,QR_SCAN,BOM_MAT,BOM_OUT,RI_NEW,RO_NEW,SPL_NEW,SKM_NEW transaction
+    class IN_DRAFT,OUT_DRAFT,PO_DRAFT,IN_CONFIRM,OUT_CONFIRM,PO_PROGRESS,PO_COMPLETE,RI_DRAFT,RI_CONFIRM,RO_DRAFT,RO_CONFIRM,SPL_DRAFT,SPL_CONFIRM,SKM_DRAFT,SKM_APPROVED status
     class STOCK,MOVEMENTS inventory
     class UPLOAD,PARSE,PREVIEW,EXECUTE,RESULT import
-    class T_USER,T_ITEM,T_UOM,T_UOMCONV,T_WH,T_LOC,T_INBOUND,T_OUTBOUND,T_PO,T_INV,T_MOVE db
+    class T_USER,T_ITEM,T_UOM,T_UOMCONV,T_WH,T_LOC,T_INBOUND,T_OUTBOUND,T_PO,T_DWO,T_MR,T_INV,T_MOVE db
 ```
 
 ## Flow Summary
@@ -190,20 +252,52 @@ flowchart TB
 4. Scan bin QR to auto-fill item, location, batch, UOM — user enters take quantity (supports partial picks)
 5. On confirmation: stock is **deducted** from inventory, stock movements are recorded
 
-### 5. Production Orders
+### 5. Retur Inbound (Customer Return)
+1. Create retur inbound with customer name, optional project name, and line items
+2. Auto-generates transaction number (`RI-YYYYMMDD-###`)
+3. Flow: DRAFT → CONFIRMED or CANCELLED
+4. On confirmation: stock is **added** to inventory (same as regular inbound)
+
+### 6. Retur Outbound (Return to Supplier)
+1. Create retur outbound with supplier name, optional project name, and line items
+2. Auto-generates transaction number (`RO-YYYYMMDD-###`)
+3. Flow: DRAFT → CONFIRMED or CANCELLED
+4. On confirmation: stock is **deducted** from inventory (same as regular outbound)
+
+### 7. Production Orders
 1. Define BOM (Bill of Materials) with input materials and output products
 2. Auto-generates order number (`PO-YYYYMMDD-###`)
-3. Flow: DRAFT -> IN_PROGRESS -> COMPLETED
-4. Materials consumed via linked outbound transactions
-5. Outputs recorded as production stock movements
+3. Optional **project name** field for grouping orders by project
+4. Flow: DRAFT → IN_PROGRESS → COMPLETED
+5. Materials consumed via linked outbound transactions
+6. Outputs recorded as production stock movements
 
-### 6. Inventory
+### 8. SPL — Direct Work Orders
+1. Create a direct work order with transfer-from/to departments and output item
+2. Auto-generates order number (`SPL-YYYYMMDD-###`)
+3. Optional **project name** field
+4. Flow: DRAFT → CONFIRMED or CANCELLED
+5. On confirmation: consumed materials are **deducted** from inventory
+
+### 9. SKM — Material Requests
+1. Create a material request listing required items and quantities
+2. Auto-generates request number (`SKM-YYYYMMDD-###`)
+3. Flow: DRAFT → APPROVED or REJECTED
+4. Used by Engineering team to request materials from the warehouse
+
+### 10. Inventory
+- **Stock Summary**: Aggregated view of total stock per item across all locations
 - **Stock Levels**: Real-time view of quantity per item + location + batch + UOM, with reserved/available split
 - **Reservations**: Click reserved qty to see which production orders hold the stock
 - **Bin Labels**: Print QR label per inventory row (encodes item + location + batch + UOM). Label stays valid through partial picks — no reprint needed when qty changes
 - **Stock Movements**: Full audit trail of all changes (INBOUND, OUTBOUND, ADJUSTMENT, TRANSFER, PRODUCTION)
 
-### 7. Excel Import
+### 11. Project Name (Cross-module Feature)
+- Available on: Retur Inbound, Retur Outbound, Production Orders, SPL
+- Provides autocomplete from previously used project names (via HTML datalist)
+- Allows grouping transactions across modules under the same project
+
+### 12. Excel Import
 - Bulk import for: items, warehouses, UOM conversions, inventory adjustments, BOMs
-- Flow: Upload -> Parse -> Preview/Validate -> Execute -> Results
+- Flow: Upload → Parse → Preview/Validate → Execute → Results
 - Templates available for download with instructions
