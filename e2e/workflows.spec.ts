@@ -323,20 +323,35 @@ test.describe("Outbound Transaction Flow", () => {
   })
 
   test("should create and confirm an outbound transaction", async ({ page }) => {
+    // Seed stock first so the confirm cannot fail due to insufficient inventory
+    await page.goto("/inbound/new")
+    await page.getByRole("textbox", { name: "Supplier" }).fill("E2E Outbound Confirm Supplier")
+    await page.getByText("Select item", { exact: true }).click()
+    await page.getByRole("option", { name: /RM-001/ }).click()
+    await page.getByRole("spinbutton").fill("20")
+    await page.getByText("Select location", { exact: true }).click()
+    await page.getByRole("option").first().click()
+    await page.getByRole("button", { name: "Save as Draft" }).click()
+    await page.waitForURL(/\/inbound\/[a-z0-9-]+$/)
+    await page.getByRole("button", { name: "Confirm" }).click()
+    await expect(page.getByText("CONFIRMED", { exact: true })).toBeVisible({ timeout: 10000 })
+
+    // Create outbound for the same item at the same location
     await page.goto("/outbound/new")
-
-    await selectFirstRealOption(page, "Select item")
+    await page.getByText("Select item", { exact: true }).click()
+    await page.getByRole("option", { name: /RM-001/ }).click()
     await page.getByRole("spinbutton").first().fill("5")
-    await selectFirstRealOption(page, "Select location")
-
+    await page.getByText("Select location", { exact: true }).click()
+    await page.getByRole("option").first().click()
     await page.getByRole("button", { name: "Create Outbound Transaction" }).click({ force: true })
     await page.waitForURL(/\/outbound\/[a-z0-9-]+$/, { timeout: 10000 })
 
-    // Confirm via AlertDialog
+    // Confirm via AlertDialog — then reload to get fresh server state
     await page.getByRole("button", { name: "Confirm Transaction" }).click()
     await page.getByRole("alertdialog").getByRole("button", { name: "Confirm" }).click()
-
-    await expect(page.getByText("CONFIRMED", { exact: true })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText("Transaction confirmed")).toBeVisible({ timeout: 10000 })
+    await page.reload()
+    await expect(page.getByText("CONFIRMED", { exact: true })).toBeVisible({ timeout: 5000 })
   })
 
   test("should link outbound to a production order", async ({ page }) => {

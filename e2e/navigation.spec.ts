@@ -14,13 +14,13 @@ test.describe("Dashboard and Navigation", () => {
   })
 
   test("should navigate via sidebar links", async ({ page }) => {
-    // Inbound
-    await page.getByRole("link", { name: "Inbound" }).click()
+    // Inbound — exact:true to avoid matching "Retur Inbound" sidebar link
+    await page.getByRole("link", { name: "Inbound", exact: true }).click()
     await page.waitForURL("/inbound")
     await expect(page.getByRole("heading", { name: "Inbound" })).toBeVisible()
 
-    // Outbound
-    await page.getByRole("link", { name: "Outbound" }).click()
+    // Outbound — exact:true to avoid matching "Retur Outbound" sidebar link
+    await page.getByRole("link", { name: "Outbound", exact: true }).click()
     await page.waitForURL("/outbound")
     await expect(page.getByRole("heading", { name: "Outbound" })).toBeVisible()
 

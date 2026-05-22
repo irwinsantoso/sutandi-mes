@@ -326,8 +326,8 @@ test.describe("Partial Outbound with QR Scanning", () => {
     // Verify draft was created
     await expect(page.getByText("DRAFT", { exact: true })).toBeVisible()
 
-    // Verify the QR scanned badge is shown in detail
-    await expect(page.getByText("QR Scanned").first()).toBeVisible()
+    // Verify the QR scanned badge is shown in detail (renders as "Scanned" with QR icon)
+    await expect(page.getByText("Scanned").first()).toBeVisible()
 
     // Confirm the transaction
     await page.getByRole("button", { name: "Confirm Transaction" }).click()

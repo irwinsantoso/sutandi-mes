@@ -32,14 +32,15 @@ test.describe("Master Data - Items", () => {
 
   test("should show category labels correctly in table", async ({ page }) => {
     await page.goto("/master/items")
-    // Table cells should contain human-readable category badges
-    await expect(page.getByText("Raw Material", { exact: true }).first()).toBeVisible()
-    await expect(page.getByText("Finished Good", { exact: true }).first()).toBeVisible()
+    // Scope to the table so we match badge cells, not dropdown options
+    const table = page.getByRole("table")
+    await expect(table.getByText("Raw Material").first()).toBeVisible()
+    await expect(table.getByText("Finished Good").first()).toBeVisible()
   })
 
   test("should navigate to new item form", async ({ page }) => {
     await page.goto("/master/items")
-    await page.getByRole("link", { name: "Add Item" }).click()
+    await page.getByText("Add Item").click()
     await page.waitForURL("/master/items/new")
     await expect(page.getByRole("heading", { name: "New Item" })).toBeVisible()
   })

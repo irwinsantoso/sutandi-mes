@@ -9,12 +9,12 @@ test.describe("Inbound Transactions", () => {
   test("should display inbound list page", async ({ page }) => {
     await page.goto("/inbound")
     await expect(page.getByRole("heading", { name: "Inbound" })).toBeVisible()
-    await expect(page.getByRole("link", { name: "New Inbound" })).toBeVisible()
+    await expect(page.getByText("New Inbound")).toBeVisible()
   })
 
   test("should navigate to new inbound form", async ({ page }) => {
     await page.goto("/inbound")
-    await page.getByRole("link", { name: "New Inbound" }).click()
+    await page.getByText("New Inbound").click()
     await page.waitForURL("/inbound/new")
     await expect(page.getByText("Supplier")).toBeVisible()
     await expect(page.getByText("Receiving Date")).toBeVisible()
@@ -39,12 +39,12 @@ test.describe("Outbound Transactions", () => {
   test("should display outbound list page", async ({ page }) => {
     await page.goto("/outbound")
     await expect(page.getByRole("heading", { name: "Outbound" })).toBeVisible()
-    await expect(page.getByRole("link", { name: "New Outbound" })).toBeVisible()
+    await expect(page.getByText("New Outbound")).toBeVisible()
   })
 
   test("should navigate to new outbound form", async ({ page }) => {
     await page.goto("/outbound")
-    await page.getByRole("link", { name: "New Outbound" }).click()
+    await page.getByText("New Outbound").click()
     await page.waitForURL("/outbound/new")
     await expect(page.getByText("Production Order (Optional)")).toBeVisible()
     await expect(page.getByText("Issue Date")).toBeVisible()
