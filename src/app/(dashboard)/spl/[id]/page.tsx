@@ -119,6 +119,12 @@ export default async function SplDetailPage({ params }: SplDetailPageProps) {
                 <p className="font-medium">{order.receivedBy}</p>
               </div>
             )}
+            {order.projectName && (
+              <div>
+                <p className="text-sm text-muted-foreground">Nama Proyek</p>
+                <p className="font-medium">{order.projectName}</p>
+              </div>
+            )}
             {order.description && (
               <div className="sm:col-span-2 lg:col-span-3">
                 <p className="text-sm text-muted-foreground">Description (Keterangan)</p>

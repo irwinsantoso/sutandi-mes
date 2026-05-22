@@ -17,6 +17,8 @@ import {
   FileUp,
   ClipboardPen,
   FileText,
+  Undo2,
+  Redo2,
 } from "lucide-react"
 import {
   Sidebar,
@@ -43,6 +45,8 @@ const navGroups = [
     items: [
       { title: "Inbound", href: "/inbound", icon: PackagePlus },
       { title: "Outbound", href: "/outbound", icon: PackageMinus },
+      { title: "Retur Inbound", href: "/retur-inbound", icon: Undo2 },
+      { title: "Retur Outbound", href: "/retur-outbound", icon: Redo2 },
     ],
   },
   {

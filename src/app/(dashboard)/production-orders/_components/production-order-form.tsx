@@ -60,6 +60,7 @@ interface ExistingOrder {
   id: string
   type: "WIP" | "FINISHED_GOOD"
   description: string | null
+  projectName: string | null
   plannedStartDate: string | null
   plannedEndDate: string | null
   notes: string | null
@@ -95,6 +96,7 @@ export function ProductionOrderForm({
     order?.type ?? "WIP"
   )
   const [description, setDescription] = useState(order?.description ?? "")
+  const [projectName, setProjectName] = useState(order?.projectName ?? "")
   const [plannedStartDate, setPlannedStartDate] = useState(
     order?.plannedStartDate ?? ""
   )
@@ -215,6 +217,7 @@ export function ProductionOrderForm({
     const payload = {
       type,
       description: description || undefined,
+      projectName: projectName || undefined,
       plannedStartDate: plannedStartDate || undefined,
       plannedEndDate: plannedEndDate || undefined,
       notes: notes || undefined,
@@ -272,6 +275,16 @@ export function ProductionOrderForm({
                 disabled={isPending}
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="projectName">Nama Proyek</Label>
+            <Input
+              id="projectName"
+              placeholder="e.g. Proyek Harvest Link (optional)"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              disabled={isPending}
+            />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">

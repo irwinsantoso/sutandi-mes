@@ -113,6 +113,7 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
   const [approvedBy, setApprovedBy] = useState("")
   const [receivedBy, setReceivedBy] = useState("")
   const [description, setDescription] = useState("")
+  const [projectName, setProjectName] = useState("")
 
   // Output item
   const [outputItemId, setOutputItemId] = useState("")
@@ -208,6 +209,7 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
         approvedBy: approvedBy || undefined,
         receivedBy: receivedBy || undefined,
         description: description || undefined,
+        projectName: projectName || undefined,
         outputItemId: outputItemId || undefined,
         outputItemName: isNewOutputItem ? outputItemName : (selectedOutputItem?.name ?? outputItemName),
         outputItemCode: isNewOutputItem ? outputItemCode : undefined,
@@ -321,6 +323,16 @@ export function SplForm({ items, uoms, locations, categories }: SplFormProps) {
                 onChange={(e) => setReceivedBy(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="projectName">Nama Proyek</Label>
+            <Input
+              id="projectName"
+              placeholder="e.g. Proyek Harvest Link (optional)"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">

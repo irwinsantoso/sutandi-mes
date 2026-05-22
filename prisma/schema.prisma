@@ -169,6 +169,9 @@ model InboundTransaction {
   supplier          String?
   receivingDate     DateTime          @map("receiving_date")
   notes             String?
+  kind              TransactionKind   @default(NORMAL)
+  projectName       String?           @map("project_name")
+  customerName      String?           @map("customer_name")
   status            TransactionStatus @default(DRAFT)
   createdById       String            @map("created_by_id")
   createdAt         DateTime          @default(now()) @map("created_at")
@@ -214,6 +217,9 @@ model OutboundTransaction {
   purpose           String?
   issueDate         DateTime          @map("issue_date")
   notes             String?
+  kind              TransactionKind   @default(NORMAL)
+  projectName       String?           @map("project_name")
+  supplierName      String?           @map("supplier_name")
   status            TransactionStatus @default(DRAFT)
   createdById       String            @map("created_by_id")
   createdAt         DateTime          @default(now()) @map("created_at")
@@ -255,6 +261,11 @@ enum TransactionStatus {
   CANCELLED
 }
 
+enum TransactionKind {
+  NORMAL
+  RETUR
+}
+
 // ============================================================
 // PRODUCTION ORDERS
 // ============================================================
@@ -274,6 +285,7 @@ model ProductionOrder {
   typeVariant      String?               @map("type_variant")
   tangga           String?
   departmentName   String?               @map("department_name")
+  projectName      String?               @map("project_name")
   createdById      String                @map("created_by_id")
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
@@ -465,6 +477,7 @@ model DirectWorkOrder {
   approvedBy          String?               @map("approved_by")
   receivedBy          String?               @map("received_by")
   description         String?
+  projectName         String?               @map("project_name")
 
   outputItemId        String?               @map("output_item_id")
   outputItemName      String                @map("output_item_name")

@@ -12,6 +12,7 @@ export type ProductionOrderRow = {
   orderNumber: string
   type: "WIP" | "FINISHED_GOOD"
   description: string | null
+  projectName: string | null
   status: "DRAFT" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
   plannedStartDate: Date | null
   createdBy: { name: string }
@@ -89,6 +90,15 @@ export const columns: ColumnDef<ProductionOrderRow>[] = [
     cell: ({ row }) => (
       <span className="max-w-[200px] truncate">
         {row.getValue("description") || "-"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "projectName",
+    header: "Project",
+    cell: ({ row }) => (
+      <span className="max-w-[160px] truncate">
+        {row.getValue("projectName") || "-"}
       </span>
     ),
   },
