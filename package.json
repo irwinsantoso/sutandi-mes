@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "demo:reset": "tsx scripts/reset-demo.ts",
-    "seed:uom": "tsx scripts/seed-uom.ts"
+    "seed:uom": "tsx scripts/seed-uom.ts",
+    "reset:keep-uom-users": "tsx scripts/reset-keep-uom-users.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
