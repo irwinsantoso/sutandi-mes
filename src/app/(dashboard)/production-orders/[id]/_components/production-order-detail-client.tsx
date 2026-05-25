@@ -185,6 +185,14 @@ export function ProductionOrderDetailClient({
               Complete
             </Button>
             <Button
+              variant="destructive"
+              onClick={() => setCancelDialogOpen(true)}
+              disabled={isPending}
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Cancel Order
+            </Button>
+            <Button
               variant="outline"
               onClick={() => setOutputDialogOpen(true)}
               disabled={isPending}

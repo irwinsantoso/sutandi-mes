@@ -53,6 +53,7 @@ export async function createMaterialRequest(data: {
 
   const { requestDate, notes, items } = parsed.data
 
+  let newId: string
   try {
     const requestNumber = await generateTransactionNumber("SKM")
 
@@ -80,17 +81,16 @@ export async function createMaterialRequest(data: {
       select: { id: true },
     })
 
+    newId = result.id
     revalidatePath("/skm")
-    redirect(`/skm/${result.id}`)
   } catch (error) {
-    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
-      throw error
-    }
     return {
       success: false as const,
       error: error instanceof Error ? error.message : "Failed to create material request.",
     }
   }
+
+  redirect(`/skm/${newId}`)
 }
 
 export async function confirmMaterialRequest(id: string) {

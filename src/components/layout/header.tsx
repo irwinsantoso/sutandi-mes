@@ -16,6 +16,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -88,12 +89,14 @@ export function Header() {
           }
         />
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel>
-            {session?.user?.name ?? "User"}
-          </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>
+              {session?.user?.name ?? "User"}
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() => signOut({ callbackUrl: "/auth/login" })}
+            onClick={() => signOut({ callbackUrl: "/login" })}
           >
             <LogOut className="mr-2 h-4 w-4" />
             Logout

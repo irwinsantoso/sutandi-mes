@@ -225,3 +225,81 @@ test.describe("Project Name field", () => {
     await expect(page.getByText("Proyek Test Retur Keluar").first()).toBeVisible()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Inventory impact verification
+// ---------------------------------------------------------------------------
+test.describe("Retur Inventory Impact", () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page)
+  })
+
+  test("confirming retur inbound creates an INBOUND stock movement", async ({ page }) => {
+    const RETUR_QTY = 4
+
+    await page.goto("/retur-inbound/new")
+    await page.getByLabel("Customer (Pengembali)").fill("Stock Check Retur In")
+    const selectTriggers = page.locator("[data-slot='select-trigger']")
+    await selectTriggers.first().click()
+    await page.getByPlaceholder("Search...").fill("RM-001")
+    await page.getByRole("option", { name: /RM-001/ }).first().click()
+    await page.getByPlaceholder("0").first().fill(String(RETUR_QTY))
+    await selectTriggers.nth(2).click()
+    await page.getByPlaceholder("Search...").last().fill("WH-01")
+    await page.getByRole("option", { name: /WH-01/ }).first().click()
+    await page.getByRole("button", { name: "Simpan Draft Retur" }).click()
+    await page.waitForURL(/\/retur-inbound\/(?!new)[^/]+/)
+    await expect(page.getByText("DRAFT")).toBeVisible()
+
+    await page.getByRole("button", { name: "Confirm Retur" }).click()
+    await expect(page.getByText("CONFIRMED")).toBeVisible({ timeout: 15000 })
+
+    // Verify stock movement created: INBOUND type, RM-001, +4
+    await page.goto("/inventory/movements")
+    const firstRow = page.getByRole("row").nth(1)
+    await expect(firstRow).toContainText("RM-001")
+    await expect(firstRow).toContainText("INBOUND")
+    await expect(firstRow).toContainText(`+${RETUR_QTY}`)
+  })
+
+  test("confirming retur outbound creates an OUTBOUND stock movement", async ({ page }) => {
+    const RETUR_QTY = 3
+
+    // Seed stock via inbound to ensure there is enough to deduct
+    await page.goto("/inbound/new")
+    await page.getByRole("textbox", { name: "Supplier" }).fill("Retur Out Seeder")
+    await page.getByText("Select item", { exact: true }).click()
+    await page.getByRole("option", { name: /RM-001/ }).click()
+    await page.getByRole("spinbutton").fill("20")
+    await page.getByText("Select location", { exact: true }).click()
+    await page.getByRole("option").first().click()
+    await page.getByRole("button", { name: "Save as Draft" }).click()
+    await page.waitForURL(/\/inbound\/[a-z0-9-]+$/, { timeout: 15000 })
+    await page.getByRole("button", { name: "Confirm" }).click()
+    await expect(page.getByText("CONFIRMED", { exact: true })).toBeVisible({ timeout: 10000 })
+
+    await page.goto("/retur-outbound/new")
+    await page.getByLabel("Supplier (Tujuan Retur)").fill("Stock Check Retur Out")
+    const selectTriggers = page.locator("[data-slot='select-trigger']")
+    await selectTriggers.first().click()
+    await page.getByPlaceholder("Search...").fill("RM-001")
+    await page.getByRole("option", { name: /RM-001/ }).first().click()
+    await page.getByPlaceholder("0").first().fill(String(RETUR_QTY))
+    await selectTriggers.nth(2).click()
+    await page.getByPlaceholder("Search...").last().fill("WH-01")
+    await page.getByRole("option", { name: /WH-01/ }).first().click()
+    await page.getByRole("button", { name: "Simpan Draft Retur" }).click()
+    await page.waitForURL(/\/retur-outbound\/(?!new)[^/]+/)
+    await expect(page.getByText("DRAFT")).toBeVisible()
+
+    await page.getByRole("button", { name: "Confirm Retur" }).click()
+    await expect(page.getByText("CONFIRMED")).toBeVisible({ timeout: 15000 })
+
+    // Verify stock movement created: OUTBOUND type, RM-001, -3 (outbound stored as negative)
+    await page.goto("/inventory/movements")
+    const firstRow = page.getByRole("row").nth(1)
+    await expect(firstRow).toContainText("RM-001")
+    await expect(firstRow).toContainText("OUTBOUND")
+    await expect(firstRow).toContainText(`-${RETUR_QTY}`)
+  })
+})
